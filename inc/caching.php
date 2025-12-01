@@ -1,0 +1,4696 @@
+<?php
+use Captcha as Captcha;
+/*
+
+ *  Class for generating static pages around the MitsubaBBS Project
+
+ *  Copyright (C) 2014  MitsubaBBS Project
+
+ *
+
+ *  This program is free software: you can redistribute it and/or modify
+
+ *  it under the terms of the GNU Affero General Public License as
+
+ *  published by the Free Software Foundation, either version 3 of the
+
+ *  License, or (at your option) any later version.
+
+ *
+
+ *  This program is distributed in the hope that it will be useful,
+
+ *  but WITHOUT ANY WARRANTY; without even the implied warranty of
+
+ *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+
+ *  GNU Affero General Public License for more details.
+
+ *
+
+ *  You should have received a copy of the GNU Affero General Public License
+
+ *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
+
+ *
+
+*/
+
+namespace Mitsuba;
+
+/**
+ * Caching
+ * Insert description here
+ *
+ * @category
+ * @package
+ * @author
+ * @copyright
+ * @license
+ * @version
+ * @link
+ * @see
+ * @since
+ */
+class Caching
+{
+
+	private $conn;
+
+	private $config;
+
+	private $mitsuba;
+
+	/**
+	 * __construct
+	 * Insert description here
+	 *
+	 * @param $connection
+	 * @param $mitsuba
+	 *
+	 * @return
+	 *
+	 * @access
+	 * @static
+	 * @see
+	 * @since
+	 */
+	function __construct($connection, &$mitsuba)
+	{
+
+		$this->conn = $connection;
+
+		$this->mitsuba = $mitsuba;
+
+		$this->config = $this->mitsuba->config;
+
+	}
+
+	/**
+	 * generateBoardLinks
+	 * Insert description here
+	 *
+	 * @param $location
+	 *
+	 * @return
+	 *
+	 * @access
+	 * @static
+	 * @see
+	 * @since
+	 */
+	function generateBoardLinks($location = "board"){
+
+		$settings = ['o_pinned' => 'Pin board menu', 'o_preview' => 'Enable post preview', 'o_loader' => 'Enable infinite scrolling', 'o_watched' => 'Enable watched threads', 'o_updater' => 'Enable updater', 'o_imgexpand' => 'Enable image expander (RES)', 'o_fastreply' => 'Enable fast reply', 'o_alt_mobile' => 'Mobile menu on the right', 'o_night_css' => 'Nighty Time Mode'];
+
+		$out = '<a href="#" class="ico" id="open"></a>
+
+		 <div id="menu-wrapper" class="pinned">
+
+				<div id="menu">
+
+					<a href="#" class="ico" id="menu-close"></a>
+
+					<a href="#" class="tab ico boards" id="active"></a>
+
+					<div class="sub-menu clear">' . $this->generateLinks($location) . '<div class="group-options">
+
+							<a href="#" class="ico settings"></a>
+
+						</div>
+
+					</div>
+
+
+
+					<a href="#" class="tab ico settings"></a>
+
+					<div class="sub-menu clear">
+          <div class="modal-bg">
+          <div class="modal-cont">
+						<h2>Settings</h2>';
+
+		$num = 0;
+
+		foreach ($settings as $name => $desc) {
+
+			$out.= '<input type="checkbox" name="' . $name . '" id="opt_' . $num . '"/><label for="opt_' . $num . '">' . $desc . '</label>';
+
+			$num++;
+
+		}
+
+		$out.= '
+
+				<br><h2>Custom board links</h2>
+
+				<center><input type="text" value="" name="o_custom_links"></center>
+
+				<div class="btn-wrap">
+
+					<input type="button" value="Reset" id="settingsReset"/>
+
+					<input type="button" value="Save" id="settingsSave"/>
+
+				</div>
+
+				</div></div></div>
+
+				<div id="just-a-menu-bg"></div>
+
+				</div>
+
+			</div>';
+
+		return $out;
+
+	}
+
+	/**
+	 * rebuildBoardLinks
+	 * Insert description here
+	 *
+	 * @return
+	 *
+	 * @access
+	 * @static
+	 * @see
+	 * @since
+	 */
+	function rebuildBoardLinks(){
+
+		$this->mitsuba->updateConfigValue("boardLinks", $this->generateBoardLinks("index"));
+
+		$this->mitsuba->updateConfigValue("boardLinks_thread", $this->generateBoardLinks("thread"));
+
+		$this->mitsuba->updateConfigValue("boardLinks_board", $this->generateBoardLinks("board"));
+
+	}
+
+	/**
+	 * generateLinks
+	 * Insert description here
+	 *
+	 * @param $location
+	 *
+	 * @return
+	 *
+	 * @access
+	 * @static
+	 * @see
+	 * @since
+	 */
+	function generateLinks($location = 'board'){
+		$categories = [];
+		$data = [];
+		$out = '';
+		$result = $this->conn->query("SELECT * FROM links");
+
+		while ($row = $result->fetch_assoc()) {
+			$id = $row['id'];
+			if ($row['parent'] < 0) {
+				$categories[$id] = $row['title'];
+				$data[$categories[$id]] = [];
+			} else {
+				array_push($data[$categories[$row['parent']]], $row);
+			}
+		}
+		if ($this->config['sitename'] == "314chan") {
+		$out.='<div class="group"><a href="/"><img src="/img/parsley_smol.png" alt="Home"></a></div>';
+	}else {
+		$out.="<div class='group'><a class='fa fa-home' href='/' title='Home'></a></div>";
+	}
+		foreach ($data as $category => $links) {
+			$out .= '<div class="group">';
+			$out .= '[';
+			$i = 0;
+
+			foreach ($links as $boardLink) {
+				$i++;
+				if ($boardLink['relative'] == 2) {
+					//if 6 == $i, don't add slash at the end, since it's the last element.
+					if(count($links) ==  $i) {
+						$out .= ' <a href="'.$this->mitsuba->getPath("./".$boardLink['url']."/", $location, 1).'" title="'.$boardLink['title'].'">'.$boardLink['short'].'</a> ';
+					}else{
+						$out .= ' <a href="'.$this->mitsuba->getPath("./".$boardLink['url']."/", $location, 1).'" title="'.$boardLink['title'].'">'.$boardLink['short'].'</a> /';
+					}
+				}
+			}
+
+			$out .= ']</div>';
+		}
+		if ($this->config['sitename'] == "314chan") {
+			$out.= '<div class="group">[<a class="fa fa-home" href="/" title="Home"></a> / <a class="fa fa-twitter" href="http://www.twitter.com/314chan" title="@314chan"></a> / <a class="fa fa-matrix-org" href="https://matrix.to/#/+314chan:matrix.org" title="Matrix Chat"></a> / <a class="fa fa-heartbeat" href="https://status.314chan.org/" title="Status Page"></a> / <a class="fa fa-pie-chart" href="https://analy.matomo.cloud/" title="Public Analytics"></a> / <a class="fa fa-list-alt" href="/boards.php" title="All Boards"></a> / <a class="fa fa-binoculars" href="/ukko/"title="Overboard (BETA!)"></a> ]&nbsp;&nbsp;[Images loaded: <b id="loaded-images">0</b>] </div>';
+		}else {
+			$out.= "[Images loaded: <b id='loaded-images'>0</b>] ";
+		}
+
+		return $out;
+
+	}
+
+	/**
+	 * getBoardLinks
+	 * Insert description here
+	 *
+	 * @param $location
+	 *
+	 * @return
+	 *
+	 * @access
+	 * @static
+	 * @see
+	 * @since
+	 */
+	function getBoardLinks($location = "board"){
+
+		if ($location == "board") {
+
+			return $this->config['boardLinks_board'];
+
+		} elseif ($location == "thread") {
+
+			return $this->config['boardLinks_thread'];
+
+		} elseif ($location == "index") {
+
+			return $this->config['boardLinks'];
+
+		}
+
+	}
+
+	/**
+	 * processComment
+	 * Insert description here
+	 *
+	 * @param $board
+	 * @param $string
+	 * @param $parser
+	 * @param $thread
+	 * @param $specialchars
+	 * @param $bbcode
+	 * @param $identifier
+	 * @param $resto
+	 * @param $wordfilter
+	 * @param $wf_table
+	 *
+	 * @return
+	 *
+	 * @access
+	 * @static
+	 * @see
+	 * @since
+	 */
+	function processComment($board, $string, $parser, $thread = 0, $specialchars = 1, $bbcode = 1, $identifier = 0, $resto = 0, $wordfilter = 1, $wf_table = array()){
+
+		global $lang;
+
+		$new = $string;
+
+		$lines = explode("\n", $new);
+
+		$new = "";
+
+		$c_lines = 0;
+
+		while ((count($lines) > 1) && (end($lines) == "")) {
+
+			array_pop($lines);
+
+		}
+
+		foreach ($lines as $line) {
+
+			$c_lines++;
+
+			if ($line == "") {
+
+				$new.= "<br />";
+
+				if (($c_lines > 15) && ($thread == 0) && (is_numeric($identifier)) && ($identifier > 0)) { break;
+				}
+
+				continue;
+
+			}
+
+			if (substr($line, 0, 2) == ">>") {
+
+				$newline = "";
+
+				$space = explode(" ", $line);
+
+				foreach ($space as $word) {
+
+					$newline.= $this->getQuotelink($board, $word, $specialchars, $thread) . " ";
+
+				}
+
+				$new.= $newline . "<br />";
+
+			} elseif (substr($line, 0, 1) == ">") {
+
+				if ($specialchars == 1) {
+
+					$line = htmlspecialchars($line);
+
+				}
+
+				$new.= "<span class='quote'>" . $line . "</span><br />";
+
+			} else {
+
+				$newline = "";
+
+				$space = explode(" ", $line);
+
+				foreach ($space as $word) {
+
+					$newline.= $this->getQuotelink($board, $word, $specialchars, $thread) . " ";
+
+				}
+
+				$new.= $newline . "<br />";
+
+			}
+
+			if (($c_lines > 15) && ($thread == 0) && (is_numeric($identifier)) && ($identifier > 0)) {
+
+				break;
+
+			}
+
+		}
+
+		$rexProtocol = '(https?://)?';
+
+		$rexDomain = '((?:[-a-zA-Z0-9]{1,63}\.)+[-a-zA-Z0-9]{2,63}|(?:[0-9]{1,3}\.){3}[0-9]{1,3})';
+
+		$rexPort = '(:[0-9]{1,5})?';
+
+		$rexPath = '(/[!$-/0-9:;=@_\':;!a-zA-Z\x7f-\xff]*?)?';
+
+		$rexQuery = '(\?[!$-/0-9:;=@_\':;!a-zA-Z\x7f-\xff]+?)?';
+
+		$rexFragment = '(#[!$-/0-9:;=@_\':;!a-zA-Z\x7f-\xff]+?)?';
+
+		if ($bbcode == 1) {
+
+			$parser->parse($new);
+
+			$new = $parser->getAsHtml();
+
+		}
+
+		$rurl = "&\\b$rexProtocol$rexDomain$rexPort$rexPath$rexQuery$rexFragment(?=[?.!,;:\"]?(\s|$))&";
+
+		/**
+		 * $match
+		 * Insert description here
+		 *
+		 * @return
+		 *
+		 * @access
+		 * @static
+		 * @see
+		 * @since
+		 */
+		$new = preg_replace_callback(
+			$rurl, function ($match) {
+
+				if ((substr($match[0], 0, 5) == "http:") || (substr($match[0], 0, 6) == "https:")) {
+
+					return "<a class='postlink' href='https://href.li/?" . $match[0] . "' target='_blank'>" . $match[0] . "</a>";
+
+				} else {
+
+					return $match[0];
+
+				}
+
+			}, $new
+		);
+
+		if (($c_lines > 15) && ($thread == 0) && (is_numeric($identifier)) && ($identifier > 0)) {
+
+			if ($resto == 0) {
+
+				$new.= '<br/><span class="abbr">' . sprintf($lang['img/comment_long'], '<a href="./res/' . $identifier . '.html#p' . $identifier . '">', '</a>') . '</span>';
+
+			} else {
+
+				$new.= '<br/><span class="abbr">' . sprintf($lang['img/comment_long'], '<a href="./res/' . $resto . '.html#p' . $identifier . '">', '</a>') . '</span>';
+
+			}
+
+		}
+
+		/**
+		 * $match
+		 * Insert description here
+		 *
+		 * @return
+		 *
+		 * @access
+		 * @static
+		 * @see
+		 * @since
+		 */
+		$new = preg_replace_callback(
+			"/<\+(.*?)\+>/", function ($match) {
+
+				return htmlspecialchars_decode($match[1]);
+
+			}, $new
+		);
+
+		/**
+		 * $match
+		 * Insert description here
+		 *
+		 * @return
+		 *
+		 * @access
+		 * @static
+		 * @see
+		 * @since
+		 */
+		$new = preg_replace_callback(
+			"/&lt;\+(.*?)\+&gt;/", function ($match) {
+
+				return htmlspecialchars_decode($match[1]);
+
+			}, $new
+		);
+
+		$new = str_replace('&lt;\+', "&lt;+", $new);
+
+		$new = str_replace('+\&gt;', "+&gt;", $new);
+
+		$new = str_replace('<\+', "<+", $new);
+
+		$new = str_replace('+\>;', "+>", $new);
+
+		if ($wordfilter == 1 && (is_array($wf_table))) {
+
+			$new = strtr($new, $wf_table);
+
+		}
+
+		return $new;
+
+	}
+
+	/**
+	 * getQuotelink
+	 * Insert description here
+	 *
+	 * @param $board
+	 * @param $link
+	 * @param $specialchars
+	 * @param $thread
+	 *
+	 * @return
+	 *
+	 * @access
+	 * @static
+	 * @see
+	 * @since
+	 */
+	function getQuotelink($board, $link, $specialchars, $thread){
+
+		$return = $link;
+
+		if ((substr($link, 0, 2) == ">>") && (is_numeric(substr($link, 2)))) {
+
+			$result = $this->conn->query("SELECT * FROM posts WHERE id='" . substr($link, 2) . "' AND board='" . $board . "' AND deleted=0;");
+
+			if ($result->num_rows == 1) {
+
+				$row = $result->fetch_assoc();
+
+				if ($row['resto'] != 0) {
+
+					if ($thread == 1) {
+
+						$return = '<a href="../../' . $board . '/res/' . $row['resto'] . '.html#p' . $row['id'] . '" class="quotelink">' . $link . '</a>';
+
+					} elseif ($thread == 0) {
+
+						$return = '<a href="../' . $board . '/res/' . $row['resto'] . '.html#p' . $row['id'] . '" class="quotelink">' . $link . '</a>';
+
+					} else {
+
+						$return = '<a href="?/board&b=' . $board . '&t=' . $row['resto'] . '#p' . $row['id'] . '" class="quotelink">' . $link . '</a>';
+
+					}
+
+				} else {
+
+					if ($thread == 1) {
+
+						$return = '<a href="../../' . $board . '/res/' . $row['id'] . '.html#p' . $row['id'] . '" class="quotelink">' . $link . '</a>';
+
+					} elseif ($thread == 0) {
+
+						$return = '<a href="../' . $board . '/res/' . $row['id'] . '.html#p' . $row['id'] . '" class="quotelink">' . $link . '</a>';
+
+					} else {
+
+						$return = '<a href="?/board&b=' . $board . '&t=' . $row['id'] . '#p' . $row['id'] . '" class="quotelink">' . $link . '</a>';
+
+					}
+
+				}
+
+			} else {
+
+				$return = "<span class='quote'>" . $link . "</span>";
+
+			}
+
+		} elseif ((substr($link, 0, 3) == ">>/") || (substr($link, 0, 4) == ">>>/")) {
+
+			$parts = explode("/", $link);
+
+			if ($this->mitsuba->common->isBoard($parts[1])) {
+
+				if (is_numeric($parts[2])) {
+
+					$result = $this->conn->query("SELECT * FROM posts WHERE id='" . $parts[2] . "' AND board='" . $parts[1] . "' AND deleted=0;");
+
+					if ($result->num_rows == 1) {
+
+						$row = $result->fetch_assoc();
+
+						if ($row['resto'] != 0) {
+
+							if ($thread == 1) {
+
+								$return = '<a href="../../' . $parts[1] . '/res/' . $row['resto'] . '.html#p' . $row['id'] . '" class="quotelink cross">' . $link . '</a>';
+
+							} elseif ($thread == 0) {
+
+								$return = '<a href="../' . $parts[1] . '/res/' . $row['resto'] . '.html#p' . $row['id'] . '" class="quotelink cross">' . $link . '</a>';
+
+							} else {
+
+								$return = '<a href="?/board&b=' . $parts[1] . '&t=' . $row['resto'] . '#p' . $row['id'] . '" class="quotelink cross">' . $link . '</a>';
+
+							}
+
+						} else {
+
+							if ($thread == 1) {
+
+								$return = '<a href="../../' . $parts[1] . '/res/' . $row['id'] . '.html#p' . $row['id'] . '" class="quotelink cross">' . $link . '</a>';
+
+							} elseif ($thread == 0) {
+
+								$return = '<a href="../' . $parts[1] . '/res/' . $row['id'] . '.html#p' . $row['id'] . '" class="quotelink cross">' . $link . '</a>';
+
+							} else {
+
+								$return = '<a href="?/board&b=' . $parts[1] . '&t=' . $row['id'] . '#p' . $row['id'] . '" class="quotelink cross">' . $link . '</a>';
+
+							}
+
+						}
+
+					} else {
+
+						if ($specialchars == 1) {
+
+							$link = htmlspecialchars($link);
+
+						}
+
+						$return = "<span class='quote'>" . $link . "</span>";
+
+					}
+
+				} else {
+
+					if ($thread == 1) {
+
+						$return = '<a href="../../' . $parts[1] . '/" class="quotelink cross">' . $link . '</a>';
+
+					} elseif ($thread == 0) {
+
+						$return = '<a href="../' . $parts[1] . '/" class="quotelink cross">' . $link . '</a>';
+
+					} else {
+
+						$return = '<a href="?/board&b=' . $parts[1] . '" class="quotelink cross">' . $link . '</a>';
+
+					}
+
+				}
+
+			} else {
+
+				if ($specialchars == 1) {
+
+					$link = htmlspecialchars($link);
+
+				}
+
+				$return = "<span class='quote'>" . $link . "</span>";
+
+			}
+
+		} elseif (substr($link, 0, 1) == ">") {
+
+			if ($specialchars == 1) {
+
+				$link = htmlspecialchars($link);
+
+			}
+
+			$return = "<span class='quote'>" . $link . "</span>";
+
+		} else {
+
+			if ($specialchars == 1) {
+
+				$link = htmlspecialchars($link);
+
+			}
+
+			$return = $link;
+
+		}
+
+		return $return;
+
+	}
+
+	/**
+	 * getHtmlDefinition
+	 * Insert description here
+	 *
+	 * @return
+	 *
+	 * @access
+	 * @static
+	 * @see
+	 * @since
+	 */
+	function getHtmlDefinition(){
+
+		$file = ' <!doctype html>
+
+		<html>';
+
+		return $file;
+
+	}
+
+	/**
+	 * getAds
+	 * Insert description here
+	 *
+	 * @param $board
+	 * @param $position
+	 *
+	 * @return
+	 *
+	 * @access
+	 * @static
+	 * @see
+	 * @since
+	 */
+	function getAds($board, $position){
+
+		$ads = $this->conn->query("SELECT * FROM ads WHERE board=('" . $this->conn->real_escape_string($board) . "' OR '*' OR '') AND position='" . $position . "' AND `show`=1;");
+
+		$text = "";
+
+		while ($ad = $ads->fetch_assoc()) {
+
+			$text.= $ad['text'];
+
+		}
+
+		return $text;
+
+	}
+
+	/**
+	 * getBoardHeader
+	 * Insert description here
+	 *
+	 * @param $board
+	 * @param $boarddata
+	 * @param $location
+	 * @param $catalog
+	 *
+	 * @return
+	 *
+	 * @access
+	 * @static
+	 * @see
+	 * @since
+	 */
+	function getBoardHeader($board, $boarddata, $location, $catalog = 0){
+
+		$file = $this->getHtmlDefinition();
+
+		$file.= "<head><title>/" . $boarddata['short'] . "/ - " . $boarddata['name'] . "</title>";
+
+		$first_default = 1;
+
+		$styles = $this->conn->query("SELECT * FROM styles ORDER BY `default` DESC");
+
+		// --------------------------------------------
+
+		$file.= '<link title="Mobile" rel="stylesheet" href="' . $this->mitsuba->getPath('/css/mobile.css', $location, 0) . '" type="text/css"/>';
+		$file.= '<link rel="stylesheet" href="' . $this->mitsuba->getPath('/css/lity.css', $location, 0) . '" type="text/css"/>';
+		$file.= '<link rel="stylesheet" type="text/css" href="'.$this->mitsuba->getPath('/css/captcha.css', $location, 0).'" />';
+		$file.= '<noscript><style>.iff-javascript-enabled {display: none;}</style></noscript>';
+
+		// --------------------------------------------
+
+		while ($row = $styles->fetch_assoc()) {
+
+			if ($first_default == 1) {
+
+				$file.= '<link rel="stylesheet" id="switch" href="' . $this->mitsuba->getPath($row['path'], $location, $row['relative']) . '">';
+
+				$first_default = 0;
+
+			}
+
+			$file.= '<link rel="alternate stylesheet" style="text/css" href="' . $this->mitsuba->getPath($row['path'], $location, $row['relative']) . '" title="' . $row['name'] . '">';
+
+		}
+
+		if ($catalog == 1) {
+
+			$file.= '<link rel="stylesheet" href="' . $this->mitsuba->getPath("/css/catalog.css", $location, 0) . '">';
+
+		}
+
+		$file.= "<script type='text/javascript' src='" . $this->mitsuba->getPath("/js/jquery.js", $location, 0) . "'></script>";
+		if ($boarddata['type'] == "fileboard") {
+			$file.= "<script type='text/javascript' src='" . $this->mitsuba->getPath("/js/lity.js", $location, 0) . "'></script>";
+
+		}
+		if ($boarddata['short'] == 'nig') {
+			$file.= "<script type='text/javascript' src='" . $this->mitsuba->getPath("/js/gapless.js", $location, 0) . "'></script>";
+			$file.="\r\n";
+			$file.='<script type="text/javascript">
+            window.player = new Gapless.Queue({
+              // tracks: [
+              //   "http://phish.in/audio/000/012/321/12321.mp3",
+              //   "http://phish.in/audio/000/012/322/12322.mp3",
+              //   "http://phish.in/audio/000/012/323/12323.mp3",
+              //   "http://phish.in/audio/000/012/324/12324.mp3"
+              // ]
+              tracks: [
+                //"/thuglife/weed.mp3",
+                "/thuglife/back.mp3",
+                "/thuglife/killa.mp3",
+                "/thuglife/coco.mp3",
+                "/thuglife/time.mp3",
+                "/thuglife/move.mp3",
+                "/thuglife/turn.mp3",
+                "/thuglife/nuthin.mp3",
+                "/thuglife/hood.mp3",
+                "/thuglife/nbk.mp3",
+                "/thuglife/dre.mp3",
+                "/thuglife/popo.mp3",
+                "/thuglife/back.mp3"
+              ],
+              onProgress: function(track) {
+                localStorage.setItem("currTrack", player.currentTrack.trackUrl);
+                localStorage.setItem("currTrackTime", player.currentTrack.currentTime);
+
+                if (player.nextTrack && player.nextTrack.webAudioLoadingState === "LOADED") {
+                  document.querySelector("#ready").classList.add("loaded");
+                  document.querySelector("#ready").innerHTML = "Both tracks are LOADED";
+                }
+                document.querySelector("#status").innerHTML = JSON.stringify({
+                  currentTrack: track ? track.completeState : {},
+                  nextTrack: player.nextTrack ? player.nextTrack.completeState : {}
+                }, null, 2);
+              }
+            });
+
+            player.play();
+
+          </script>';
+		}
+
+
+		$file.= "<script type='text/javascript' src='" . $this->mitsuba->getPath("/js/js.cookie.js", $location, 0) . "'></script>";
+
+		if ($catalog == 1) {
+
+			$file.= "<script type='text/javascript' src='" . $this->mitsuba->getPath("/js/catalog.js", $location, 0) . "'></script>";
+
+		} else {
+
+			$file.= "<script type='text/javascript' src='" . $this->mitsuba->getPath("/js/style.js", $location, 0) . "'></script>";
+
+			$file.= "<script type='text/javascript' src='" . $this->mitsuba->getPath("/js/mousetrap.min.js", $location, 0) . "'></script>";
+
+			$file.= "<script type='text/javascript' src='" . $this->mitsuba->getPath("/js/mousetrap_global.js", $location, 0) . "'></script>";
+
+			$file.= "<script type='text/javascript' src='" . $this->mitsuba->getPath("/js/common.js", $location, 0) . "'></script>";
+
+			if ($location == "index") {
+
+				$file.= "<script type='text/javascript' src='" . $this->mitsuba->getPath("/js/admin.js", $location, 0) . "'></script>";
+
+			}
+
+		}
+
+		$file.= '<meta http-equiv="Content-Type" content="text/html; charset=utf-8" />';
+
+		$file.= '<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=2.0, user-scalable=yes" />';
+
+		$file.= '<meta property="og:boardname" content="' . $boarddata['short'] . '" />';
+
+		//twitter
+
+		$file.= '<meta name="twitter:card" content="summary" />';
+		$file.= '<meta name="twitter:site" content="@314chan" />';
+		$file.= '<meta property="og:url" content="https://www.314chan.co/' . $boarddata['short'] . '/" />';
+		$file.= '<meta property="og:title" content="314chan - ' . $boarddata['name'] . '" />';
+		$file.= '<meta property="og:description" content="' . htmlspecialchars($boarddata['des'], ENT_COMPAT | ENT_HTML5) . '" />';
+
+		$file.= '';
+
+		// end twitter
+
+		$file.= '<!-- I know this isn\'t very HTML5-like, but it\'s the only thing I can think of right now.-->';
+
+		$file.= '<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />';
+
+		$file.= '<meta http-equiv="Pragma" content="no-cache" />';
+
+		$file.= '<meta http-equiv="Expires" content="0" />';
+		if($boarddata['type'] == "imageboard"){
+		$file.='<script type="text/javascript">
+				//<![CDATA[
+				function loadCSS(e, t, n) { "use strict"; var i = window.document.createElement("link"); var o = t || window.document.getElementsByTagName("script")[0]; i.rel = "stylesheet"; i.href = e; i.media = "only x"; o.parentNode.insertBefore(i, o); setTimeout(function () { i.media = n || "all" }) }loadCSS("/css/fork-awesome.min.css");loadCSS("/css/glightbox.css");
+				//]]>
+				</script>';
+				}
+		$file.= $this->getAds($boarddata['short'], "head");
+
+		if ($location == "index") {
+
+			$file.= "</head><body class='modPanel'>";
+
+		} else {
+
+			$file.= "</head><body>";
+
+		}
+
+		if ($this->config['enable_meny'] == 1) {
+
+			$file.= '<div class="meny">';
+
+			$file.= $this->getMenu($location);
+
+			$file.= '</div>';
+
+			$file.= '<div class="meny-arrow"></div>';
+
+			$file.= '<div class="contents">';
+
+		}
+
+		$file.= $this->getBoardLinks($location);
+
+		$file.= '<div class="boardBanner">';
+
+		$file.= '<img class="title" src="/banners/r.php" alt="Haruko" />';
+
+		$file.= '<div class="boardTitle">/' . $boarddata['short'] . '/ - ' . $boarddata['name'] . '</div>';
+
+		$file.= '<div class="boardSubtitle">' . $boarddata['message'] . '</div>';
+		if ($boarddata['catalog'] == 1) {
+			$file.= '<div style="font-size:10px;text-decoration: none!important;"><a href="/'.$boarddata['short'].'/catalog.html">Catalog</a></div>';
+		}
+
+		$file.= '</div>';
+
+		$file.= '<br />';
+
+		//$file.= '<hr />';
+
+		$file.= $this->getAds($boarddata['short'], "aboveform");
+
+		return $file;
+
+	}
+
+	/**
+	 * generateView
+	 * Insert description here
+	 *
+	 * @param $board
+	 * @param $threadno
+	 * @param $return
+	 * @param $mode
+	 * @param $adm_type
+	 *
+	 * @return
+	 *
+	 * @access
+	 * @static
+	 * @see
+	 * @since
+	 */
+	function generateView($board, $threadno = 0, $return = 0, $mode = 0, $adm_type = 0){
+
+		global $lang;
+
+		$overboard = 0;
+
+		$overboard_boards = array();
+
+		$board = $this->conn->real_escape_string($board);
+
+		if (!$this->mitsuba->common->isBoard($board)) {
+
+			return -16;
+
+		}
+
+		$boarddata = $this->mitsuba->common->getBoardData($board);
+
+		if (($boarddata['hidden'] == 1) && ($return == 0)) {
+
+			return -666;
+
+		}
+
+		if ($boarddata['type'] == "overboard") {
+
+			$overboard = 1;
+
+			$overboard_boards = explode(",", $boarddata['overboard_boards']);
+
+		}
+
+		$wfresult = $this->conn->query("SELECT * FROM wordfilter WHERE active=1");
+
+		$replace_array = array();
+
+		if ($overboard == 0) {
+
+			$replace_array[$board] = array();
+
+		} else {
+
+			foreach ($overboard_boards as $short) {
+
+				$replace_array[$short] = array();
+
+			}
+
+		}
+
+		while ($row = $wfresult->fetch_assoc()) {
+
+			if ($row['boards'] != "%") {
+
+				$boards = explode(",", $row['boards']);
+
+				if ($overboard == 0) {
+
+					if (in_array($board, $boards)) {
+
+						$replace_array[$board][$row['search']] = $row['replace'];
+
+					}
+
+				} else {
+
+					foreach ($overboard_boards as $short) {
+
+						if (in_array($short, $boards)) {
+
+							$replace_array[$short][$row['search']] = $row['replace'];
+
+						}
+
+					}
+
+				}
+
+			} else {
+
+				if ($overboard == 0) {
+
+					$replace_array[$board][$row['search']] = $row['replace'];
+
+				} else {
+
+					foreach ($overboard_boards as $short) {
+
+						$replace_array[$short][$row['search']] = $row['replace'];
+					}
+
+				}
+
+			}
+
+		}
+
+		$max_pages = $boarddata['pages'];
+
+		$all_pages = $max_pages + 1;
+
+		$pages = $max_pages + 1;
+
+		$page = 0;
+
+		if (!is_numeric($threadno)) {
+
+			return -15; //error
+
+
+
+		}
+
+		if ($return == 1) {
+
+			if (!is_numeric($mode)) {
+
+				return -15; //error
+
+
+
+			}
+
+			if (($mode == 0) && ($threadno != 0)) {
+
+				$page = $threadno;
+
+				$threadno = 0;
+
+				$pages = 0;
+
+			}
+
+		}
+
+		if ($threadno != 0) {
+
+			$pages = 0;
+
+		}
+
+		include_once "libs/jbbcode/Parser.php";
+
+		$parser = new \JBBCode\Parser();
+
+		if (($boarddata['bbcode'] == 1) || ($overboard == 1)) {
+
+			$bbcode = $this->conn->query("SELECT * FROM bbcodes;");
+
+			while ($row = $bbcode->fetch_assoc()) {
+
+				$parser->addBBCode($row['name'], $row['code']);
+
+			}
+
+		}
+
+		$embed_table = array();
+
+		$result = $this->conn->query("SELECT * FROM embeds;");
+
+		while ($row = $result->fetch_assoc()) {
+
+			$embed_table[] = $row;
+
+		}
+
+		$extensions = array();
+
+		$result = $this->conn->query("SELECT * FROM extensions;");
+
+		while ($row = $result->fetch_assoc()) {
+
+			$extensions[$row['mimetype']]['image'] = $row['image'];
+
+		}
+
+		if ($return == 1) {
+
+			$pages = $page;
+
+		}
+
+		if ($threadno == 0) {
+
+			$cnt = $this->conn->query("SELECT id FROM posts WHERE resto=0 AND board='" . $board . "' AND deleted=0");
+
+			$all_pages = ceil(($cnt->num_rows) / 10);
+
+			if ($all_pages == 0) {
+
+				$all_pages = 1;
+
+			}
+
+			if (($max_pages + 1) < $all_pages) {
+
+				$all_pages = $max_pages;
+
+			}
+
+			if ($return == 0) {
+
+				$pages = $all_pages;
+
+			}
+
+		}
+
+		$location = "";
+
+		if ($return == 1) {
+
+			$location = "index";
+
+		} elseif ($threadno != 0) {
+
+			$location = "thread";
+
+		} else {
+
+			$location = "board";
+
+		}
+
+		$header = $this->getBoardHeader($board, $boarddata, $location);
+
+		$rules_ads = $this->getAds($boarddata['short'], "rules");
+
+		$underform_ads = $this->getAds($boarddata['short'], "underform");
+
+		$footer_ads = $this->getAds($boarddata['short'], "footer");
+
+		$bottom_ads = $this->getAds($boarddata['short'], "bottom");
+
+		$meny_config = "";
+
+		$locked = 0;
+
+		$postform = "";
+
+		$global = "";
+
+		$sql_boardlist = "";
+
+		if ($this->config['enable_meny'] == 1) {
+
+			$meny_config = $this->getMenyConfig($location);
+
+		}
+
+		if (($return == 1) && ($adm_type >= 1)) {
+
+		} elseif ($threadno != 0) {
+
+			$result = $this->conn->query("SELECT * FROM posts WHERE id=" . $threadno . " AND board='" . $board . "' AND deleted=0;");
+
+			if ($result->num_rows == 1) {
+
+				$tdata = $result->fetch_assoc();
+
+				$locked = $tdata['locked'];
+
+			} else {
+
+				return;
+
+			}
+
+		}
+
+		if (($locked == 0) && ($overboard == 0) && ($boarddata['allow_replies'] == 1)) {
+
+			if ($threadno != 0) {
+
+				$postform.= '<div class="postingMode">' . $lang['img/posting_mode'] . '</div>';
+
+				if ($return == 1) {
+
+					$postform.= '<div class="navLinks">[<a href="?/board&b=' . $board . '" accesskey="a">' . $lang['img/return_c'] . '</a>] [<a href="#bottom">' . $lang['img/bottom'] . '</a>]</div>';
+
+					$postform.= '<form id="postform" action="./imgboard.php?mod=1" method="post" enctype="multipart/form-data">';
+
+				} else {
+
+					$postform.= '<div class="navLinks">[<a href=".././" accesskey="a">' . $lang['img/return_c'] . '</a>] [<a href="#bottom">' . $lang['img/bottom'] . '</a>]';
+
+					if ($boarddata['catalog'] == 1) {
+
+						$postform.= ' [<a href="../catalog.html">Catalog</a>]';
+
+					}
+
+					$postform.= '</div>';
+
+					$postform.= '<form id="postform" action="../../imgboard.php" method="post" enctype="multipart/form-data">';
+
+				}
+
+			} else {
+
+				if ($return == 1) {
+
+					$postform.= '<form id="postform" action="/imgboard.php?mod=1" method="post" enctype="multipart/form-data">';
+
+				} else {
+
+					$postform.= '<form id="postform" action="/imgboard.php" method="post" enctype="multipart/form-data">';
+
+				}
+
+			}
+
+			if ($adm_type <= 0) {
+
+				$postform.= '<input type="hidden" name="MAX_FILE_SIZE" value="' . $boarddata['filesize'] . '" />';
+
+			}
+
+			$postform.= '<input type="hidden" name="mode" value="regist" />
+
+				<table class="postForm" id="postForm" role="presentation">
+
+				<tbody>';
+
+			if (($boarddata['noname'] == 0) || ($adm_type >= 2)) {
+
+				$postform.= '<tr>
+
+					<td><label for="name">' . $lang['img/name'] . '</label></td>
+					<td><input class="board-input" name="name" type="text" board-input autocomplete="off" placeholder="Anonymous (not required)" id="name"/></td>
+					</tr>';
+
+			}
+
+			if (($boarddata['ids'] == 1) && ($adm_type >= 2)) {
+
+				$postform.= '<tr>
+
+					<td><label for="fake_id">' . $lang['img/fake_id'] . '</label></td>
+
+					<td><input class="board-input" name="fake_id" type="text" id="fake_id"/></td>
+
+					</tr>';
+
+			}
+
+			$postform.= '<tr>
+
+				<td><label for="options">' . $lang['img/email'] . '</label></td>
+
+				<td><input class="board-input" name="email" type="text" placeholder="noko" id="options"/></td>
+
+				</tr>
+
+				<tr>
+
+				<td><label for="subject">' . $lang['img/subject'] . '</label></td>
+
+				<td><input class="board-input" name="sub" type="text" id="subject"/>';
+
+			$postform.= '<input type="hidden" name="board" value="' . $board . '" />';
+
+			if ($threadno != 0) {
+
+				$postform.= '<input type="hidden" name="resto" value="' . $threadno . '" />';
+
+			}
+			//<button type="submit" name="post" id="post">post</button>
+			$postform.= '<input id="postButton" type="submit" value="' . $lang['img/submit'] . '" /></td>
+
+				</tr>
+
+				<tr>
+
+				<td><label for="comment">' . $lang['img/comment'] . '</label></td>
+
+				<td><textarea name="com" cols="35" rows="4" id="comment"></textarea></td>
+
+				</tr>';
+
+			$captchaUrl = "";
+
+			if ($boarddata['captcha'] == 1) {
+				$postform.= '<tr id="captcha">
+
+					<td>' . $lang['img/captcha'] . '</td>
+
+					<td>';
+				//require_once 'piDentify/CaptchaClass.php';
+				require_once(dirname(__FILE__) . "/piDentify/CaptchaClass.php");
+
+				$Captcha = new \piDentify\Captcha\Captcha;
+				$postform.= $Captcha->createCaptcha();
+				$postform.='</td>
+
+					</tr>';
+
+			}
+
+			$postform .= '<tr id="ruspam">
+            <td>Dont.</td>
+            <td>
+            <input type="text" name="wewlad" />
+            </td>';
+
+			if ((($boarddata['type'] == "imageboard") || ($boarddata['type'] == "fileboard")) && ($boarddata['file_replies'] == 1)) {
+
+				$postform.= '<tr>
+
+					<td><label for="postFile">' . $lang['img/file'] . '</td>
+
+					<td><input id="postFile" name="upfile" type="file"/>';
+
+				$postform.= '</td>
+
+					</tr>';
+
+				$fspecials = "";
+
+				if ($boarddata['spoilers'] == 1) {
+
+					$fspecials.= '<label><input id="spoiler" type="checkbox" name="spoiler" value="1">' . $lang['img/spoiler'] . '</label>';
+
+				}
+
+				if ($boarddata['nofile'] == 1) {
+
+					$fspecials.= '<label><input id="nofile" type="checkbox" name="nofile" value="1">' . $lang['img/mod_nofile'] . '</label>';
+
+				}
+
+				if (!empty($fspecials)) {
+
+					$postform.= '<tr>
+
+						<td>Options</td>
+
+						<td>' . $fspecials . '</td>
+
+						</tr>';
+
+				}
+
+				if ($boarddata['embeds'] == 1) {
+
+					$postform.= '<tr>
+
+						<td>' . $lang['img/embed'] . '</td>
+
+						<td><input type="text" name="embed"/></td>
+
+						</tr>';
+
+				}
+
+			}
+
+			if ($boarddata['type'] == "linkboard") {
+
+				$postform.= '<tr>
+
+					<td>' . $lang['img/url'] . '</td>
+
+					<td><input type="text" name="url"/></td>
+
+					</tr>';
+
+			}
+
+			$postform.= '<tr>
+
+				<td><label for="postPassword">' . $lang['img/password'] . '</label></td>
+				<td><input id="postPassword" name="pwd" type="password" maxlength="8" autocomplete="off"/> <span class="password">' . $lang['img/password_used'] . '</span></td>
+				</tr>';
+
+			if ($adm_type >= 2) {
+
+				$postform.= '<tr>
+
+					<td>' . $lang['img/mod'] . '</td>
+
+					<td><input type="checkbox" name="raw" value=1 />' . $lang['img/mod_raw'] . '<input type="checkbox" name="sticky" value=1 />' . $lang['img/mod_sticky'] . '<input type="checkbox" name="lock" value=1 />' . $lang['img/mod_lock'] . '<br />';
+
+				$postform.= '<input type="checkbox" name="nolimit" value=1 selected/>' . $lang['img/mod_nolimit'] . '<input type="checkbox" name="ignoresizelimit" value=1 />' . $lang['img/mod_nosizelimit'] . '<input type="checkbox" name="nofile" value=1 />' . $lang['img/mod_nofile'] . '</td>';
+
+				$postform.= '<tr>
+
+					<td>' . $lang['img/mod_capcode'] . '</td>
+
+					<td id="capcode_td"><input type="radio" name="capcode" value=0 checked />' . $lang['img/mod_nocapcode'] . '<input type="radio" name="capcode" value=1 />' . $lang['img/mod_capcode'];
+
+				if ($adm_type == 3) {
+
+					$postform.= '<input type="radio" name="capcode" value=2 id="custom_cc" />' . $lang['img/mod_customcapcode'];
+
+					$postform.= '<div style="display: none;" id="cc_fields" value="#FF0000">' . $lang['img/text'] . ': <input type="text" name="cc_text" /><br />
+                    ' . $lang['img/color'] . ': <input type="text" name="cc_color" /></div>';
+
+					$postform.= "<script type=\"text/javascript\">
+                    $(\"input[name='capcode']\").change(function() {
+                      if ($(\"#custom_cc\").prop(\"checked\")){
+                        $(\"#cc_fields\").css(\"display\", \"\");
+                      } else {
+                        $(\"#cc_fields\").css(\"display\", \"none\");
+                        $(\"#cc_fields input\").val(\"\");
+                      }
+                    });
+                    </script>";
+
+				}
+
+				$postform.= "</td></tr>";
+
+			}
+
+			$unique = $this->conn->query("SELECT DISTINCT ip FROM posts WHERE board='" . $boarddata['short'] . "';")->num_rows;
+
+			$AllExtensions = array();
+
+			$result = $this->conn->query("SELECT DISTINCT * FROM extensions;");
+
+			while ($row = $result->fetch_assoc()) {
+
+				$AllExtensions[$row['ext']] = $row['ext'];
+
+			}
+
+			if ($boarddata['extensions'] == "%") {
+				$boarddata['extensions'] = implode(", ", $AllExtensions);
+
+			}
+			$bdata = $this->mitsuba->common->getBoardData($board);
+			$postform.= '<tr class="rules">
+
+				<td colspan="2">
+
+				<ul class="rules">';
+			if($bdata['type'] != "textboard") {
+				$postform.='<li>' . $lang['img/supported_types'] . $boarddata['extensions'] . '</li>
+
+				<li>' . sprintf($lang['img/max_filesize'], $this->mitsuba->common->human_filesize($boarddata['filesize'])) . '</li>
+
+				<li>' . $lang['img/thumbnail'] . '</li>';
+			}else{
+				$postform.='';
+			}
+			$postform.='<li>' . sprintf($lang['img/unique_user_posts'], $unique) . '</li>
+            <li>Read the <a target="_blank" rel="noopener noreferrer" href="/rules.html">Rules</a> and <a target="_blank" rel="noopener noreferrer" href="/faq.html">FAQ</a> before posting.</li>
+            <li>&dagger;: Available options: sage (antibump)</li>';
+           if($bdata['type'] == "imageboard"){
+            $postform.='<li><button id="galBut" type="button" style="background:none!important;color:blue;border:none;padding:0!important;font: inherit;cursor: pointer;">Activate Image Gallery</button> (Requires Javascript)</li>';
+            }
+				$postform.= $rules_ads . '</ul>
+
+				</td>
+
+				</tr>
+
+				</tbody>
+
+				</table>
+
+				</form>';
+
+			if ($boarddata['captcha'] == 1) {
+
+				$postform.= '<script type="text/javascript">
+
+				$("#captchaField").before("<div style=\'width: 300px; height: 70px; background-color: white;\'><a href=\'#\' id=\'captchaClickHere\' style=\'vertical-align: middle; align: center;\'>' . $lang['img/click_here'] . '</a></div>");
+
+				$("#captchaClickHere").click(function (event) {
+
+					event.preventDefault();
+
+					d = new Date();
+
+					$(this).parent().after("<a style=\'display: block; width: 300px; height: 70px; border: 1px solid #000000;\' href=\'#\' id=\'reloadCaptcha\'><img id=\'captchaImage\' src=\'' . $captchaUrl . '?t="+d.getTime()+"\' /></a>");
+
+					$("#reloadCaptcha").click(function (ev) {
+
+						ev.preventDefault();
+
+						d = new Date();
+
+						$("#captchaImage").attr("src", "' . $captchaUrl . '?t="+d.getTime());
+
+					});
+
+					$(this).parent().hide();
+
+				});
+
+				</script>';
+
+			}
+
+		} elseif ($overboard == 1) {
+			//TODO: Overboard stuff
+			$postform.= "<p style='text-align: center'>I am your overboard. I will provide an overview of all OP posts.</p>";
+		} else {
+
+			$postform.= "<div class='closed'><h1>" . $lang['img/locked'] . "</h1></div>";
+
+		}
+
+		$postform.= $underform_ads . "<hr />";
+
+		if (!empty($this->config['global_message'])) {
+
+			$global = '<div class="globalMessage" id="globalMessage">';
+
+			$global.= $this->config['global_message'];
+
+			$global.= '</div>';
+
+		}
+
+		if ($overboard == 1) {
+
+			$sql_boardlist = "(";
+			$first = 1;
+
+			foreach ($overboard_boards as $short) {
+
+				if ($first == 1) {
+
+					$sql_boardlist.= "'" . $short . "'";
+
+					$first = 0;
+
+				} else {
+
+					$sql_boardlist.= " OR '" . $short . "'";
+
+				}
+
+				$sql_boardlist .= ")";
+
+			}
+		}
+
+		for ($pg = $page;$pg <= $pages;$pg++) {
+
+			$file = $header;
+
+			$file.= $postform;
+
+			$file.= $global;
+
+			$file.= '<hr />';
+
+			if ($return == 1) {
+
+				$file.= '<form id="delform" action="./imgboard.php" method="post"><div class="board">';
+
+			} elseif ($threadno != 0) {
+
+				$file.= '<form id="delform" action="../../imgboard.php" method="post"><div class="board">';
+
+			} else {
+
+				$file.= '<form id="delform" action="../imgboard.php" method="post"><div class="board">';
+
+			}
+
+			if ($overboard == 1) {
+				if($sql_boardlist !== "('%')") {
+					$result = $this->conn->query("SELECT * FROM posts WHERE resto=0 AND board='" . $sql_boardlist . "' AND deleted=0 ORDER BY lastbumped DESC LIMIT " . ($pg * 10) . ",10");
+				}else{
+					$result = $this->conn->query("SELECT * FROM posts WHERE resto=0 AND deleted=0 ORDER BY lastbumped DESC LIMIT " . ($pg * 10) . ",10");
+				}
+			} elseif ($threadno != 0) {
+
+				$result = $this->conn->query("SELECT * FROM posts WHERE id=" . $threadno . " AND board='" . $board . "' AND deleted=0;");
+
+			} else {
+
+				//$result = $this->conn->query("SELECT * FROM posts WHERE resto=0 AND board='" . $board . "' AND deleted=0 ORDER BY sticky DESC, lastbumped DESC LIMIT " . ($pg * 10) . ",10");
+				$result = $this->conn->query("SELECT *, id as thread_id, (SELECT COUNT(*) FROM posts WHERE board='$board' AND resto = thread_id AND deleted = 0) as replies FROM posts  WHERE resto=0 AND board='$board' AND deleted=0  ORDER BY sticky DESC, lastbumped DESC");
+
+			}
+
+			if ($threadno == 0) {
+
+				if ($boarddata['type'] == "fileboard") {
+
+					$file.= '<table class="fileListing">
+
+							<thead>
+
+							<tr>
+
+								<td class="postblock">
+
+									No.
+
+								</td>
+
+								<td class="postblock">
+
+									Name
+
+								</td>
+
+								<td class="postblock">
+
+									File
+
+								</td>
+				                <td class="postblock">
+
+				                  Embed
+
+				                </td>
+								<td class="postblock">
+
+									Size
+
+								</td>
+
+								<td class="postblock">
+
+									Subject
+
+								</td>
+
+								<td class="postblock">
+
+									Date
+
+								</td>
+
+								<td class="postblock">
+
+									Replies
+
+								</td>
+
+								<td class="postblock">
+
+								</td>
+
+							</tr>
+
+							</thead>
+
+							<tbody>';
+
+				} elseif ($boarddata['type'] == "linkboard") {
+
+					$file.= '<table class="linkListing">
+
+							<thead>
+
+							<tr>
+
+								<td class="postblock">
+
+									No.
+
+								</td>
+
+								<td class="postblock">
+
+									Name
+
+								</td>
+
+								<td class="postblock">
+
+									Link
+
+								</td>
+
+								<td class="postblock">
+
+									Subject
+
+								</td>
+
+								<td class="postblock">
+
+									Date
+
+								</td>
+
+								<td class="postblock">
+
+								</td>
+
+							</tr>
+
+							</thead>
+
+							<tbody>';
+
+				}
+
+			}
+
+			while ($row = $result->fetch_assoc()) {
+
+				if (($threadno == 0) && (($boarddata['type'] == "linkboard") || ($boarddata['type'] == "fileboard"))) {
+
+					$file.= '<tr>';
+
+					$file.= "<td class='text-center'>" . $row['id'] . "</td>";
+
+					$trip = "";
+
+					if (!empty($row['trip'])) {
+
+						$trip = " !" . $row['trip'] . "";
+
+					}
+
+					if (!empty($row['strip'])) {
+
+						$trip.= " !!" . $row['strip'] . "";
+
+					}
+
+					if ((!empty($row['trip'])) || (!empty($row['strip']))) {
+
+						$trip = "<span class='postertrip text-center'>" . $trip . "</span>";
+
+					}
+
+					$poster_id = "";
+
+					if ((!empty($row['poster_id'])) && ($boarddata['ids'] == 1) && (empty($row['capcode_text']))) {
+
+						$poster_id = '<span class="posteruid text-center">(ID: ' . $row['poster_id'] . ')</span>';
+
+					}
+
+					$c_image = "";
+
+					if (!empty($row['capcode_icon'])) {
+
+						if (substr($row['capcode_icon'], 0, 1) == ".") {
+
+							//$c_image = ' <img src="'.$this->mitsuba->getPath($row['capcode_icon'], $location, 1).'" alt="Capcode" style="margin-bottom: -3px;" />';
+
+
+
+						} else {
+
+							//$c_image = ' <img src="'.$row['capcode_icon'].'" alt="Capcode" style="margin-bottom: -3px;" />';
+
+
+
+						}
+
+					}
+
+					$email_a = "";
+
+					$email_b = "";
+
+					if (!empty($row['email'])) {
+
+						$email_a = '<a href="mailto:' . $row['email'] . '" class="useremail text-center">';
+
+						$email_b = '</a>';
+
+					}
+
+					$file.= "<td class='text-center'>";
+
+					if (!empty($row['capcode_text'])) {
+
+						$file.= $email_a . '<span class="name"><span style="' . $row['capcode_style'] . '">' . $row['name'] . '</span></span>' . $email_b . $trip . ' <span class="commentpostername"><span style="' . $row['capcode_style'] . '">## ' . $row['capcode_text'] . '</span>' . $c_image . '</span>';
+
+					} else {
+
+						$file.= $email_a . '<span class="name">' . $row['name'] . '</span>' . $email_b . $trip . ' ' . $poster_id;
+
+					}
+
+					$file.= "</td>";
+
+					if (empty($row['filename'])) {
+
+						if ($boarddata['type'] == "linkboard") {
+
+							$file.= '<td></td>';
+
+						} else {
+
+							$file.= '<td></td><td></td>';
+
+						}
+
+					} elseif ($row['filename'] == "deleted") {
+
+						if ($boarddata['type'] == "linkboard") {
+
+							$file.= '<td>Link deleted</td>';
+
+						} else {
+
+							$file.= '<td>File deleted</td><td></td>';
+							$file.= '<td></td>';
+
+						}
+
+					} else {
+
+						if ($boarddata['type'] == "linkboard") {
+
+							$file.= '<td class="text-center">[ <a href="' . substr(strip_tags($row['filename']), 4) . '">' . htmlspecialchars($row['orig_filename']) . '</a> ]</td>';
+
+						} else {
+
+							$file.= '<td>';
+
+							if ($return == 1) {
+
+								$file.= '[<a href="./' . $board . '/src/' . $row['filename'] . '" target="_blank">' . htmlspecialchars($row['orig_filename']) . '</a>]';
+
+							} elseif ($threadno != 0) {
+
+								$file.= '[<a href="../../' . $board . '/src/' . $row['filename'] . '" target="_blank">' . htmlspecialchars($row['orig_filename']) . '</a>]';
+
+							} else {
+
+								$file.= '[<a href="../' . $board . '/src/' . $row['filename'] . '" target="_blank">' . htmlspecialchars($row['orig_filename']) . '</a>]';
+
+							}
+
+							$file.= '</td>';
+							//EMBEDDING
+							$file.= '<td>[<a href="/' .$board. '/src/'.$row['filename'].'" data-lity>Embed</a>]</td>';
+							$file.= '<td>' . $row['filesize'] . '</td>';
+
+
+						}
+
+					}
+
+					$file.= '<td><span class="subject">' . htmlspecialchars($row['subject']) . '</span></td>';
+
+					$file.= '<td class="text-center">' . date("d/m/Y(D)H:i:s", $row['date']) . '</td>';
+
+					$file.= '<td>'.$row['replies'].'</td>';
+
+					$file.= '<td class="text-center">[<a href="../' . $row['board'] . '/res/' . $row['id'] . '.html" class="replylink">' . $lang['img/reply'] . '</a>]</td>';
+
+					$file.= '</tr>';
+
+				} else {
+
+					if ($overboard == 1) {
+
+						$file.= "<h2><a href='/" . $row['board'] . "/'>>>>/" . $row['board'] . "/</a></h2>";
+
+					}
+					$file.= $this->getThread($row['board'], $threadno, $return, $adm_type, $parser, $boarddata, isset($replace_array[$row['board']]), $embed_table, $row, $extensions);
+
+				}
+
+			}
+
+			if (($boarddata['type'] == "linkboard") || ($boarddata['type'] == "fileboard")) {
+
+				$file.= '</tbody></table>';
+
+			}
+
+			$file.= "</div>";
+
+			if ($threadno != 0) {
+
+				if ($return == 1) {
+
+					$file.= '<div class="navLinks">[<a href="?/board&b=' . $board . '" accesskey="a">' . $lang['img/return_c'] . '</a>] [<a href="#top">' . $lang['img/top'] . '</a>]</div>';
+
+				} else {
+
+					$file.= '<div class="navLinks">[<a href=".././" accesskey="a">' . $lang['img/return_c'] . '</a>] [<a href="#top">' . $lang['img/top'] . '</a>]';
+
+					if ($boarddata['catalog'] == 1) {
+
+						$file.= ' [<a href="../catalog.html">Catalog</a>]';
+
+					}
+
+					$file.= '</div>';
+
+				}
+
+			}
+
+			$file.= '<div class="deleteform">
+
+				<input type="hidden" name="mode" value="usrform" />' . $lang['img/delete_post'] . ' [<input type="checkbox" name="onlyimgdel" value="on" title="Delete '.$lang['img/file_only'].'"/>' . $lang['img/file_only'] . '] ';
+
+			if ($adm_type <= 1) {
+
+				$file.= $lang['img/password'] . ' <input type="password" id="delPassword" name="pwd" maxlength="8" autocomplete="off"/> ';
+
+			}
+
+			$file.= '<input type="submit" name="delete" value="' . $lang['img/delete'] . '" /><br />';
+
+			if ($adm_type <= 1) {
+
+				$file.= '<input type="hidden" name="board" value="' . $boarddata['short'] . '" /> ';
+
+				$file.= $lang['img/reason'] . ' <input type="text" name="reason" /><input type="submit" name="report" value="' . $lang['img/report'] . '" />';
+
+			}
+
+			$file.= '<div class="stylechanger" id="stylechangerDiv" style="display:none;">' . $lang['img/style'] . ' <select id="stylechanger"></select></div>
+
+				</div>';
+
+			$file.= "</form><br/>";
+
+			$file.= $footer_ads;
+
+			if (($boarddata['type'] == "imageboard") || ($boarddata['type'] == "textboard") || ($boarddata['type'] == "overboard") || ($boarddata['type'] == "linkboard")) {
+
+				if (($return == 1) && ($threadno == 0)) {
+
+					$file.= '<div class="pagelist">';
+
+					$file.= '<div class="prev">';
+
+					if ($page != 0) {
+
+						$file.= '<form action="?/board&b=' . $board . '&p=' . ($page - 1) . '" onsubmit="location=this.action; return false;"><input type="submit" value="' . $lang['img/previous'] . '" /></form>';
+
+					} else {
+
+						$file.= '<span>' . $lang['img/previous'] . '</span>';
+
+					}
+
+					$file.= ' </div>';
+
+					$file.= '<div class="pages">';
+
+					for ($i = 0;$i <= $max_pages;$i++) {
+
+						if ($i > $all_pages) {
+
+							$file.= "[" . $i . "] ";
+
+						} else {
+
+							if ($i == $page) {
+
+								//if you're on $i.html (technically)
+
+								$file.= "[<strong>" . $i . "</strong>] ";
+
+							} else {
+
+								$file.= "[<a href='?/board&b=" . $board . "&p=" . $i . "'>" . $i . "</a>] ";
+
+							}
+
+						}
+
+					}
+
+					$file.= '</div>';
+
+					$file.= ' <div class="next">';
+
+					if ($page != $all_pages) {
+
+						$file.= '<form action="?/board&b=' . $board . '&p=' . ($page + 1) . '" onsubmit="location=this.action; return false;"><input type="submit" value="' . $lang['img/next'] . '" /></form>';
+
+					} else {
+
+						$file.= '<span>' . $lang['img/next'] . '</span>';
+
+					}
+
+					$file.= '</div>';
+
+					$file.= '</div>';
+
+				} elseif ($threadno == 0) {
+
+					$file.= '<div class="pagelist">';
+
+					$file.= '<div class="prev">';
+
+					if ($pg != 0) {
+
+						if ($pg != 1) {
+
+							$file.= '<form action="./' . ($pg - 1) . '.html" onsubmit="location=this.action; return false;"><input type="submit" value="' . $lang['img/previous'] . '" /></form>';
+
+						} else {
+
+							$file.= '<form action="./index.html" onsubmit="location=this.action; return false;"><input type="submit" value="' . $lang['img/previous'] . '" /></form>';
+
+						}
+
+					} else {
+
+						$file.= '<span>' . $lang['img/previous'] . '</span>';
+
+					}
+
+					$file.= ' </div>';
+
+					$file.= '<div class="pages">';
+
+					for ($i = 0;$i <= $max_pages;$i++) {
+
+						if ($i == $pg) {
+
+							if ($i == 0) {
+
+								//if you're on the index.html...
+
+								$file.= "[<a href='./index.html'><strong>" . $i . "</strong></a>] ";
+
+							} else {
+
+								//if you're on $i.html...
+
+								$file.= "[<a href='./" . $i . ".html'><strong>" . $i . "</strong></a>] ";
+
+							}
+
+						} else {
+
+							if ($i+1 > $pages) {
+
+								// $i.html doesn't exist
+
+								$file.= "[" . $i . "] ";
+
+							} else {
+
+								if ($i != 0) {
+
+									$file.= "[<a href='./" . $i . ".html'>" . $i . "</a>] ";
+
+								} else {
+
+									$file.= "[<a href='./index.html'>" . $i . "</a>] ";
+
+								}
+
+							}
+
+						}
+
+					}
+
+					$file.= '</div>';
+
+					$file.= ' <div class="next">';
+
+					if ($pg+1 != $all_pages) {
+
+						$file.= '<form action="./' . ($pg + 1) . '.html" onsubmit="location=this.action; return false;"><input type="submit" value="' . $lang['img/next'] . '" /></form>';
+
+					} else {
+
+						$file.= '<span>' . $lang['img/next'] . '</span>';
+
+					}
+
+					$file.= '</div>';
+
+					if ($boarddata['catalog'] == 1) {
+
+						$file.= '<div class="pages cataloglink"><a href="./catalog.html">Catalog</a></div>';
+
+					}
+
+					$file.= '</div>';
+
+				}
+
+			}
+
+			$file.= '<br /><div style="text-align: center; font-size: x-small!important; padding-bottom: 4px; padding-top: 10px; color: #333;"><span class="absBotDisclaimer">- <a href="https://gitgud.io/parley/Haruko" target="_top" rel="nofollow">Haruko</a> + <a href="http://github.com/MitsubaBBS/Mitsuba" target="_top" rel="nofollow">mitsuba</a> -<br /><br />&nbsp;&nbsp;In memory of 314chan\'s co-founder, goo.</span></div>';
+
+			$file.= '<div id="bottom"></div>';
+
+			if ($this->config['enable_meny'] == 1) {
+
+				$file.= $meny_config;
+
+			}
+
+			$file.= $bottom_ads;
+
+			$file.= "<script type='text/javascript' src='" . $this->mitsuba->getPath("/js/blazy.js", $location, 0) . "'></script>";
+		if($boarddata['type'] == "imageboard"){
+			$file.= "<script type='text/javascript' src='" . $this->mitsuba->getPath("/js/glightbox.js", $location, 0) . "'></script>";
+		}
+			$file.= "<script>
+            ;(function() {
+                        // Initialize
+                        var bLazy = new Blazy({
+                          offset:10,
+                          success: function(){
+                            updateCounter();
+                          }
+                        });
+                    })();
+
+                    // not needed, only here to illustrate amount of loaded images
+                    var imageLoaded = 0;
+                    var eleCountLoadedImages = document.getElementById('loaded-images');
+
+                    function updateCounter() {
+                      imageLoaded++;
+                      eleCountLoadedImages.innerHTML = imageLoaded;
+                    }
+            </script>";
+            if($boarddata['type'] == "imageboard"){
+			$file.="
+			<script>
+			var lightbox = GLightbox();
+			var theBox = GLightbox({
+				selector: 'fileThumb',
+				openEffect: 'fade',
+				descPosition: 'right'
+			});
+
+			galBut.addEventListener('click', function() {
+				theBox.open();
+				return false;
+			});
+			theBox.setElements({
+				'href': String,
+				'title': 'title',
+				'description': 'blah blah'
+			});
+			</script>";
+			}
+			if ($this->config['sitename'] == "314chan") {
+			$file.="
+			<!-- Matomo -->
+			<script type='text/javascript'>
+				var _paq = window._paq || [];
+				/* tracker methods like 'setCustomDimension' should be called before 'trackPageView' */
+				_paq.push(['setSecureCookie', location.protocol === 'https:']);
+				_paq.push(['setDocumentTitle', document.domain + '/' + document.title]);
+				_paq.push(['setCookieDomain', '*.314chan.co']);
+				_paq.push(['trackPageView']);
+				_paq.push(['enableLinkTracking']);
+				(function() {
+				var u='https://analy.matomo.cloud/';
+				_paq.push(['setTrackerUrl', u+'matomo.php']);
+				_paq.push(['setSiteId', '1']);
+				var d=document, g=d.createElement('script'), s=d.getElementsByTagName('script')[0];
+				g.type='text/javascript'; g.async=true; g.defer=true; g.src='//cdn.matomo.cloud/analy.matomo.cloud/matomo.js'; s.parentNode.insertBefore(g,s);
+				})();
+			</script>
+			<!-- End Matomo Code -->";
+		}
+			$file.= "</body></html>";
+
+			if ($return != 1) {
+
+				if ($threadno != 0) {
+
+					$handle = fopen("./" . $board . "/res/" . $threadno . ".html", "w");
+
+				} else {
+
+					if ($pg != 0) {
+
+						$handle = fopen("./" . $board . "/" . $pg . ".html", "w");
+
+					} else {
+
+						$handle = fopen("./" . $board . "/index.html", "w");
+
+					}
+
+				}
+
+				fwrite($handle, $file);
+
+				fclose($handle);
+
+			} else {
+
+				return $file;
+
+			}
+
+		}
+
+	}
+
+	/**
+	 * getMenyConfig
+	 * Insert description here
+	 *
+	 * @param $location
+	 *
+	 * @return
+	 *
+	 * @access
+	 * @static
+	 * @see
+	 * @since
+	 */
+	function getMenyConfig($location = "board"){
+
+		$file = "</div>";
+
+		$file.= '<link rel="stylesheet" href="' . $this->mitsuba->getPath("/css/meny.css", $location, 0) . '">';
+
+		$file.= "<script type='text/javascript' src='" . $this->mitsuba->getPath("./js/meny.min.js", $location, 1) . "'></script>\n";
+
+		$file.= '<script type="text/javascript">' . "\n";
+
+		$file.= 'if ( window.self === window.top ) {' . "\n";
+
+		$file.= "var meny = Meny.create({
+
+		    menuElement: document.querySelector( '.meny' ),
+
+		    contentsElement: document.querySelector( '.contents' ),
+
+		    position: 'left',
+
+		    width: 260,
+
+		    mouse: true,
+
+		    touch: true
+
+		});\n";
+
+		$file.= '} else {' . "\n";
+
+		$file.= '$(".meny").css("display", "none");' . "\n";
+
+		$file.= '}' . "\n";
+
+		$file.= "</script>\n";
+
+		return $file;
+
+	}
+
+	/**
+	 * generatePage
+	 * Insert description here
+	 *
+	 * @param $name
+	 *
+	 * @return
+	 *
+	 * @access
+	 * @static
+	 * @see
+	 * @since
+	 */
+	function generatePage($name){
+
+		global $lang;
+
+		//markdown parser
+
+		$result = $this->conn->query("SELECT * FROM pages WHERE name='" . $this->conn->real_escape_string($name) . "'");
+
+		if (($result->num_rows == 0) && (file_exists("./" . $name . ".html"))) {
+
+			unlink("./" . $name . ".html");
+
+			return;
+
+		}
+
+		$row = $result->fetch_assoc();
+
+		$title = $row['title'];
+
+		$text = $row['text'];
+
+		if ($row['raw'] == 1) {
+
+			$file = $text;
+
+		} else {
+
+			$file = '<!doctype html>';
+
+			$file.= '<html lang="en">
+
+        <head>
+
+            <meta http-equiv="Content-Type" content="text/html; charset=UTF-8"/>
+
+            <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1.0"/>
+
+						<meta charset="UTF-8">
+
+				<title>' . $title . '</title>
+
+            <link href="css/MIcons.css" rel="stylesheet">
+
+            <link href="css/materialize.css" type="text/css" rel="stylesheet" media="screen,projection"/>
+
+            <link href="css/style.css" type="text/css" rel="stylesheet" media="screen,projection"/>
+            <script type="text/javascript" src="/js/jquery.js"></script>
+			<script type="text/javascript" src="js/materialize.js"></script>
+
+            <script>
+			  document.addEventListener("DOMContentLoaded", function() {
+			    var elems = document.querySelectorAll(".sidenav");
+			    var options = {
+			    menuWidth: 300, // Default is 300
+			    edge: "left", // Choose the horizontal origin
+			    closeOnClick: false, // Closes side-nav on <a> clicks, useful for Angular/Meteor
+			    draggable: true // Choose whether you can drag to open on touch screens
+			    }
+			    var instances = M.Sidenav.init(elems);
+			  });
+
+			  // Initialize collapsible (uncomment the lines below if you use the dropdown variation)
+			  // var collapsibleElem = document.querySelector(".collapsible");
+			  // var collapsibleInstance = M.Collapsible.init(collapsibleElem, options);
+            </script>
+					</head>
+		<body>
+
+		<script>
+          function imgError(image) {
+              image.onerror = "";
+              image.src = "/img/deleted.gif";
+              return true;
+          }
+
+          //props to anon for the fix.
+          if (localStorage.getItem("o_night_css") == 1) {
+
+          	//this gets the current hour in 24 hour format.
+          	var CurrHour = new Date().getHours();
+
+          	//if the Current Hour is greater than 9PM, or less than 5AM change CSS to the "night.css".
+          	if (CurrHour >= "18"|| CurrHour <= "5"){
+          		var path = "/css/front-night.css";
+
+          		//create it inline temporarily while page is loading from localstorage, prevents bright flash
+          		var css = localStorage.getItem("front_night_theme_css");
+          		if (css != null) {
+          			var inlineTheme = document.createElement("style");
+          			document.head.appendChild(inlineTheme);
+          			inlineTheme.innerHTML = css;
+          			document.styleSheets[0].disable = true;
+          		}
+
+          		//next insert the normal link element
+          		var linkTheme = document.createElement("link");
+          		linkTheme.rel = "stylesheet";
+          		linkTheme.onload = function() {
+          			css = "";
+          			for(var i = 0; i < linkTheme.sheet.rules.length; i++) {
+          				//add all the rules to the css to save in localstorage for next load
+          				css += linkTheme.sheet.rules[i].cssText;
+          			}
+          			localStorage.setItem("front_night_theme_css", css);
+          			//remove the inline style afterwards, not needed anymore
+           			if (inlineTheme) {
+          				inlineTheme.remove();
+          			}
+          		}
+          		linkTheme.href = path;
+          		document.head.appendChild(linkTheme);
+          		document.styleSheets[0].disable = true;
+          	}
+          }
+
+          </script>
+          <div class="navbar-fixed">
+              <nav class="greencolor">
+                <div class="nav-wrapper container">
+                  <a id="logo-container" href="/" class="brand-logo">
+	                  <picture>
+	                  	<source srcset="img/logo.webp" type="image/webp">
+					  	<source srcset="img/logo.png" type="image/jpeg">
+					  	<img src="img/logo.png" alt="314chan"/>
+	                  </picture>
+                  </a>
+                  <ul class="right hide-on-med-and-down">
+                  	<li><a href="rules.html">Rules</a></li>
+				  	<li><a href="faq.html">FAQ</a></li>
+				  	<li><a href="news.html">News</a></li>
+				  	<li><a href="https://matrix.to/#/+314chan:matrix.org">Matrix Chat</a></li>
+				  	<li><a href="/boards.php">Boards List</a></li>
+                  </ul>
+                </div>
+          </nav>
+          <ul id="slide-out" class="sidenav">
+    <li><div class="user-view">
+      <div class="background">
+        <img src="images/office.jpg">
+      </div>
+      <a href="#user"><img class="circle" src="images/yuna.jpg"></a>
+      <a href="#name"><span class="white-text name">John Doe</span></a>
+      <a href="#email"><span class="white-text email">jdandturk@gmail.com</span></a>
+    </div></li>
+    <li><a href="#!"><i class="material-icons">cloud</i>First Link With Icon</a></li>
+    <li><a href="#!">Second Link</a></li>
+    <li><div class="divider"></div></li>
+    <li><a class="subheader">Subheader</a></li>
+    <li><a class="waves-effect" href="#!">Third Link With Waves</a></li>
+  </ul>
+  <a href="#" data-target="slide-out" class="sidenav-trigger"><i class="material-icons">menu</i></a>
+        </div>';
+
+			$file.= '<div class="container">
+
+            <br /><br />
+
+            <div class="card-panel">';
+
+			//I need to figure out why class card-title isn't working on this page...for now, just make it an h1
+
+			$file.= '
+
+				<h1>' . $title . '</h1>
+
+				';
+			include_once "libs/Parsedown/Parsedown.php";
+			$file.= \Parsedown::instance()->text($text);
+
+			$file.= '
+
+				</div>
+
+				</div>
+
+				';
+
+			if ($this->config['enable_meny'] == 1) {
+
+				$file.= '</div>';
+
+			}
+
+			$file.= '</body>
+				</html>';
+
+		}
+
+		$handle = fopen("./" . $name . ".html", "w");
+
+		fwrite($handle, $file);
+
+		fclose($handle);
+
+	}
+
+	/**
+	 * forceGetThread
+	 * Insert description here
+	 *
+	 * @param $board
+	 * @param $threadno
+	 *
+	 * @return
+	 *
+	 * @access
+	 * @static
+	 * @see
+	 * @since
+	 */
+	function forceGetThread($board, $threadno){
+
+		global $lang;
+
+		if ($boarddata = $this->mitsuba->common->isBoard($board)) {
+
+			$result = $this->conn->query("SELECT * FROM posts WHERE id=" . $threadno . " AND board='" . $board . "' AND deleted=0");
+
+			if ($result->num_rows == 1) {
+
+				$trow = $result->fetch_assoc();
+
+				$wfresult = $this->conn->query("SELECT * FROM wordfilter WHERE active=1");
+
+				$replace_array = array();
+
+				while ($row = $wfresult->fetch_assoc()) {
+
+					if ($row['boards'] != "%") {
+
+						$boards = explode(",", $row['boards']);
+
+						if (in_array($board, $boards)) {
+
+							$replace_array[$row['search']] = $row['replace'];
+
+						}
+
+					} else {
+
+						$replace_array[$row['search']] = $row['replace'];
+
+					}
+
+				}
+
+				include_once "libs/jbbcode/Parser.php";
+
+				$parser = new \JBBCode\Parser();
+
+				if ($boarddata['bbcode'] == 1) {
+
+					$bbcode = $this->conn->query("SELECT * FROM bbcodes;");
+
+					while ($row = $bbcode->fetch_assoc()) {
+
+						$parser->addBBCode($row['name'], $row['code']);
+
+					}
+
+				}
+
+				$embed_table = array();
+
+				$result = $this->conn->query("SELECT * FROM embeds;");
+
+				while ($row = $result->fetch_assoc()) {
+
+					$embed_table[] = $row;
+
+				}
+
+				$extensions = array();
+
+				$result = $this->conn->query("SELECT * FROM extensions;");
+
+				while ($row = $result->fetch_assoc()) {
+
+					$extensions[$row['mimetype']]['image'] = $row['image'];
+
+				}
+
+				$file = $this->getThread($trow['board'], 0, 0, 0, $parser, $boarddata, $replace_array, $embed_table, $trow, $extensions, 1);
+
+				$this->_parser = $parser;
+
+				$this->_replace_array = $replace_array;
+
+			}
+
+		}
+
+	}
+
+	/**
+	 * getThread
+	 * Insert description here
+	 *
+	 * @param $board
+	 * @param $threadno
+	 * @param $return
+	 * @param $adm_type
+	 * @param $parser
+	 * @param $boarddata
+	 * @param $replace_array
+	 * @param $embed_table
+	 * @param $row
+	 * @param $extensions
+	 * @param $force
+	 *
+	 * @return
+	 *
+	 * @access
+	 * @static
+	 * @see
+	 * @since
+	 */
+	function getThread($board, $threadno, $return, $adm_type, $parser, $boarddata, $replace_array, $embed_table, $row, $extensions, $force = 0){
+
+		global $lang;
+
+		if (($this->config['caching_mode'] == 1) && ($threadno == 0) && ($return == 0) && ($force == 0) && (file_exists("./" . $row['board'] . "/res/" . $row['id'] . "_index.html"))) {
+
+			return file_get_contents("./" . $row['board'] . "/res/" . $row['id'] . "_index.html");
+
+		}
+
+		if ($return == 1) {
+
+			$location = "index";
+
+		} elseif ($threadno != 0) {
+
+			$location = "thread";
+
+		} else {
+
+			$location = "board";
+
+		}
+
+		$file = "";
+
+		$file.= '<div class="thread" id="t' . $row['id'] . '">';
+
+		$file.= '<div class="postContainer opContainer" id="pc' . $row['id'] . '">';
+
+		$file.= '<div id="p' . $row['id'] . '" class="post op">';
+
+		$file.= '<div class="postInfo" id="pi' . $row['id'] . '">';
+
+		$file.= '<input type="checkbox" name="del%' . $row['board'] . '%' . $row['id'] . '" value="delete" title="Delete post #'.$row['id'].' from board '.$row['board'].'"/>';
+
+		$file.= '<span class="subject">' . $row['subject'] . '</span> ';
+
+		$trip = "";
+
+		if (!empty($row['trip'])) {
+
+			$trip = " !" . $row['trip'] . "";
+
+		}
+
+		if (!empty($row['strip'])) {
+
+			$trip.= " !!" . $row['strip'] . "";
+
+		}
+
+		if ((!empty($row['trip'])) || (!empty($row['strip']))) {
+
+			$trip = "<span class='postertrip'>" . $trip . "</span>";
+
+		}
+
+		$poster_id = "";
+
+		if ((!empty($row['poster_id'])) && ($boarddata['ids'] == 1) && (empty($row['capcode_text']))) {
+
+			$poster_id = '<span class="posteruid">(ID: ' . $row['poster_id'] . ')</span>';
+
+		}
+
+		$c_image = "";
+
+		if (!empty($row['capcode_icon'])) {
+
+			if (substr($row['capcode_icon'], 0, 1) == ".") {
+
+				//$c_image = ' <img src="'.$this->mitsuba->getPath($row['capcode_icon'], $location, 1).'" alt="Capcode" style="margin-bottom: -3px;" />';
+
+
+
+			} else {
+
+				//$c_image = ' <img src="'.$row['capcode_icon'].'" alt="Capcode" style="margin-bottom: -3px;" />';
+
+
+
+			}
+
+		}
+
+		$email_a = "";
+
+		$email_b = "";
+
+		if (!empty($row['email'])) {
+
+			$email_a = '<a href="mailto:' . $row['email'] . '" class="useremail">';
+
+			$email_b = '</a>';
+
+		}
+
+		$file.= "<td>";
+
+		$file.= '<span class="nameBlock">';
+
+		if (!empty($row['capcode_text'])) {
+
+			$file.= $email_a . '<span class="name"><span style="' . $row['capcode_style'] . '">' . $row['name'] . '</span></span>' . $email_b . $trip . ' <span class="commentpostername"><span style="' . $row['capcode_style'] . '">## ' . $row['capcode_text'] . '</span>' . $c_image . '</span>';
+
+		} else {
+
+			$file.= $email_a . '<span class="name">' . $row['name'] . '</span>' . $email_b . $trip . ' ' . $poster_id;
+
+		}
+
+		$file.= '</span>';
+
+		$opip = $row['ip'];
+
+		if (($adm_type >= 2) && ($return == 1)) {
+
+			$file.= ' <span class="posterIp">(<a href="http://whatismyipaddress.com/ip/' . $row['ip'] . '" target="_blank">' . $row['ip'] . '</a>)</span>';
+
+			$file.= ' [<a href="?/info&ip=' . $row['ip'] . '">N</a>] <b style="color: red;">[ OP ]</b>';
+
+		}
+
+		$file.= ' <span data-raw="' . $row['date'] . '" class="dateTime">' . date("d/m/Y(D)H:i:s", $row['date']) . '</span> ';
+
+		if ($return == 1) {
+
+			$file.= '<span class="postNum"><a href="?/board&b=' . $row['board'] . '&t=' . $row['id'] . '#p' . $row['id'] . '" title="Highlight this post">No.</a><a href="?/board&b=' . $row['board'] . '&t=' . $row['id'] . '#p' . $row['id'] . '#q' . $row['id'] . '" class="quotePost" id="z' . $row['id'] . '" title="Quote this post">' . $row['id'] . '</a></span>';
+
+			if ($row['locked'] == 1) {
+
+				$file.= '<i alt="Closed" title="Closed" class="fa fa-lock fa-2"></i>';
+
+			}
+
+			if ($row['sticky'] == 1) {
+
+				$file.= '<i alt="Sticky" title="Sticky" class="fa fa-thumb-tack fa-2"></i>';
+
+			}
+
+			if ($row['sage'] == 1) {
+
+				$file.= ' <span style="color: red;"><i alt="Permasaged" title="Permasaged" class="fa fa-leaf fa-2 stickyIcon"></i></span> ';
+
+			}
+
+			if ($adm_type >= 2) {
+
+				$file.= ' <span class="adminControls">[<a href="?/bans/add&b=' . $row['board'] . '&p=' . $row['id'] . '">B</a> / <a href="?/bans/add&b=' . $row['board'] . '&p=' . $row['id'] . '&d=1">&</a> / <a href="?/delete_post&b=' . $row['board'] . '&p=' . $row['id'] . '">D</a>';
+
+				if (!empty($row['filename'])) {
+
+					$file.= ' / <a href="?/delete_post&b=' . $row['board'] . '&p=' . $row['id'] . '&f=1">F</a>]';
+
+				} else {
+
+					$file.= ']';
+
+				}
+
+				if ($adm_type >= 3) {
+
+					$file.= ' [<a href="?/edit_post&b=' . $row['board'] . '&p=' . $row['id'] . '" class="edit">E</a>]';
+
+				}
+
+			} else {
+
+				$file.= ' <span class="adminControls">[<a href="?/bans/add&b=' . $row['board'] . '&p=' . $row['id'] . '">B</a>]';
+
+			}
+
+			if ($adm_type >= 2) {
+
+				$file.= ' [<a href="?/sticky/toggle&b=' . $row['board'] . '&t=' . $row['id'] . '">S</a> / <a href="?/locked/toggle&b=' . $row['board'] . '&t=' . $row['id'] . '">L</a> / <a href="?/antibump/toggle&b=' . $row['board'] . '&t=' . $row['id'] . '">A</a>]';
+
+			}
+
+			if ($threadno == 0) {
+
+				$file.= '&nbsp; <span>[<a href="?/board&b=' . $row['board'] . '&t=' . $row['id'] . '" class="replylink">' . $lang['img/reply'] . '</a>]</span>';
+
+			}
+
+			$file.= '</span>';
+
+		} elseif ($threadno != 0) {
+
+			$file.= '<span class="postNum"><a href="../../' . $row['board'] . '/res/' . $row['id'] . '.html#p' . $row['id'] . '" title="Highlight this post">No.</a><a href="../../' . $row['board'] . '/res/' . $row['id'] . '.html#q' . $row['id'] . '" class="quotePost" id="z' . $row['id'] . '" title="Quote this post">' . $row['id'] . '</a>';
+
+			if ($row['locked'] == 1) {
+
+				$file.= '<i alt="Closed" title="Closed" class="fa fa-lock fa-2 stickyIcon"></i>';
+
+			}
+
+			if ($row['sticky'] == 1) {
+
+				$file.= '<i alt="Sticky" title="Sticky" class="fa fa-thumb-tack fa-2 stickyIcon"></i>';
+
+			}
+
+			if ($row['sage'] == 1) {
+
+				$file.= ' <span style="color: red;"><i alt="Permasaged" title="Permasaged" class="fa fa-leaf fa-2 stickyIcon"></i></span> ';
+
+			}
+
+			$file.= '</span>';
+
+		} else {
+
+			$file.= '<span class="postNum"><a href="../' . $row['board'] . '/res/' . $row['id'] . '.html#p' . $row['id'] . '" title="Highlight this post">No.</a><a href="../' . $row['board'] . '/res/' . $row['id'] . '.html#q' . $row['id'] . '" class="quotePost" id="z' . $row['id'] . '" title="Quote this post">' . $row['id'] . '</a> ';
+
+			if ($row['locked'] == 1) {
+
+				$file.= '<i alt="Closed" title="Closed" class="fa fa-lock fa-2 stickyIcon"></i>';
+
+			}
+
+			if ($row['sticky'] == 1) {
+
+				$file.= '<i alt="Sticky" title="Sticky" class="fa fa-thumb-tack fa-2 stickyIcon"></i>';
+
+			}
+
+			if ($row['sage'] == 1) {
+
+				$file.= ' <span style="color: red;"><i alt="Permasaged" title="Permasaged" class="fa fa-leaf fa-2 stickyIcon"></i></span> ';
+
+			}
+
+			$file.= '&nbsp; <span>[<a href="../' . $row['board'] . '/res/' . $row['id'] . '.html" class="replylink">' . $lang['img/reply'] . '</a>]</span></span>';
+
+		}
+
+		$file.= '</div>';
+
+		$file.= $this->getFiles($row, $row['board'], $return, $threadno, $embed_table, $extensions);
+
+		$file.= '<blockquote class="postMessage" id="m' . $row['id'] . '">';
+
+		$wf = 1;
+
+		if (!empty($row['capcode_text'])) {
+
+			$wf = 0;
+
+		}
+
+		if ($row['raw'] != 1) {
+
+			if ($row['raw'] == 2) {
+
+				if ($return == 1) {
+
+					$file.= $this->processComment($row['board'], $row['comment'], $parser, 2, 0, $boarddata['bbcode'], $row['id'], $row['resto'], $wf, $replace_array);
+
+				} else {
+
+					$file.= $this->processComment($row['board'], $row['comment'], $parser, $threadno != 0, 0, $boarddata['bbcode'], $row['id'], $row['resto'], $wf, $replace_array);
+
+				}
+
+			} else {
+
+				if ($return == 1) {
+
+					$file.= $this->processComment($row['board'], $row['comment'], $parser, 2, 1, $boarddata['bbcode'], $row['id'], $row['resto'], $wf, $replace_array);
+
+				} else {
+
+					$file.= $this->processComment($row['board'], $row['comment'], $parser, $threadno != 0, 1, $boarddata['bbcode'], $row['id'], $row['resto'], $wf, $replace_array);
+
+				}
+
+			}
+
+		} else {
+
+			$file.= $row['comment'];
+
+		}
+
+		$file.= '</blockquote>';
+
+		$file.= '</div>';
+
+		$file.= '</div>';
+
+		if ($threadno != 0) {
+
+			$posts = $this->conn->query("SELECT * FROM posts WHERE resto=" . $row['id'] . " AND board='" . $row['board'] . "' AND deleted=0 ORDER BY id ASC");
+
+		} else {
+
+			$postnos = $this->conn->query("SELECT COUNT(*) FROM posts WHERE resto=" . $row['id'] . " AND board='" . $row['board'] . "' AND deleted=0");
+
+			$row1 = $postnos->fetch_row();
+
+			if ($row1[0] == 0) {
+
+				$file.= '</div><hr />';
+
+				if (($this->config['caching_mode'] == 1) && ($threadno == 0) && ($return == 0)) {
+
+					$handle = fopen("./" . $row['board'] . "/res/" . $row['id'] . "_index.html", "w");
+
+					fwrite($handle, $file);
+
+					fclose($handle);
+
+				}
+
+				return $file;
+
+			}
+
+			if ($row1[0] > 3) {
+
+				if ($return == 1) {
+
+					$file.= '<span class="summary">' . sprintf($lang['img/posts_omitted'], ($row1[0] - 3), '<a href="?/board&b=' . $row['board'] . '&t=' . $row['id'] . '" class="replylink">', '</a>') . '</span>';
+
+				} else {
+
+					$file.= '<span class="summary">' . sprintf($lang['img/posts_omitted'], ($row1[0] - 3), '<a href="./res/' . $row['id'] . '.html" class="replylink">', '</a>') . '</span>';
+
+				}
+
+			}
+
+			$offset = 0;
+
+			if ($row1[0] > 3) {
+
+				$offset = $row1[0] - 3;
+
+			}
+
+			$posts = $this->conn->query("SELECT * FROM posts WHERE resto=" . $row['id'] . " AND board='" . $row['board'] . "' AND deleted=0 ORDER BY id ASC LIMIT " . $offset . ",3");
+
+		}
+
+		while ($row2 = $posts->fetch_assoc()) {
+
+			$file.= '<div class="postContainer replyContainer" id="pc' . $row2['id'] . '">';
+
+			$file.= '<div class="sideArrows" id="sa' . $row2['id'] . '">&gt;&gt;</div>';
+
+			$file.= '<div id="p' . $row2['id'] . '" class="post reply">';
+
+			$file.= '<div class="postInfo" id="pi' . $row2['id'] . '">';
+
+			$file.= '<input type="checkbox" name="del%' . $row2['board'] . '%' . $row2['id'] . '" value="delete" title="Delete post #'.$row2['id'].' from board '.$row2['board'].'"/>';
+
+			$file.= '<span class="subject">' . $row2['subject'] . '</span> ';
+
+			$trip = "";
+
+			if (!empty($row2['trip'])) {
+
+				$trip = " !" . $row2['trip'] . "";
+
+			}
+
+			if (!empty($row2['strip'])) {
+
+				$trip.= " !!" . $row2['strip'] . "";
+
+			}
+
+			if ((!empty($row2['trip'])) || (!empty($row2['strip']))) {
+
+				$trip = "<span class='postertrip'>" . $trip . "</span>";
+
+			}
+
+			$poster_id = "";
+
+			if ((!empty($row2['poster_id'])) && ($boarddata['ids'] == 1) && (empty($row2['capcode_text']))) {
+
+				$poster_id = '<span class="posteruid">(ID: ' . $row2['poster_id'] . ')</span>';
+
+			}
+
+			$c_image = "";
+
+			if (!empty($row2['capcode_icon'])) {
+
+				if (substr($row2['capcode_icon'], 0, 1) == ".") {
+
+					//$c_image = ' <img src="'.$this->mitsuba->getPath($row2['capcode_icon'], $location, 1).'" alt="Capcode" style="margin-bottom: -3px;" />';
+
+
+
+				} else {
+
+					//$c_image = ' <img src="'.$row2['capcode_icon'].'" alt="Capcode" style="margin-bottom: -3px;" />';
+
+
+
+				}
+
+			}
+
+			$email_a = "";
+
+			$email_b = "";
+
+			if (!empty($row2['email'])) {
+
+				$email_a = '<a href="mailto:' . $row2['email'] . '" class="useremail">';
+
+				$email_b = '</a>';
+
+			}
+
+			$file.= "<td>";
+
+			$file.= '<span class="nameBlock">';
+
+			if (!empty($row2['capcode_text'])) {
+
+				$file.= $email_a . '<span class="name"><span style="' . $row2['capcode_style'] . '">' . $row2['name'] . '</span></span>' . $email_b . $trip . ' <span class="commentpostername"><span style="' . $row2['capcode_style'] . '">## ' . $row2['capcode_text'] . '</span>' . $c_image . '</span>';
+
+			} else {
+
+				$file.= $email_a . '<span class="name">' . $row2['name'] . '</span>' . $email_b . $trip . ' ' . $poster_id;
+
+			}
+
+			$file.= '</span>';
+
+			if (($adm_type >= 2) && ($return == 1)) {
+
+				$file.= ' <span class="posterIp">(<a href="http://whatismyipaddress.com/ip/' . $row2['ip'] . '" target="_blank">' . $row2['ip'] . '</a>) [<a href="?/info&ip=' . $row2['ip'] . '">N</a>] ';
+
+				if ($row2['ip'] == $opip) {
+
+					$file.= '<b style="color: red;">[ OP ]</b>';
+
+				}
+
+			}
+
+			$file.= ' <span class="dateTime">' . date("d/m/Y(D)H:i:s", $row2['date']) . '</span> ';
+
+			if ($return == 1) {
+
+				$file.= '<span class="postNum"><a href="?/board&b=' . $row['board'] . '&t=' . $row['id'] . '#p' . $row2['id'] . '" title="Highlight this post">No.</a><a href="?/board&b=' . $row['board'] . '&t=' . $row['id'] . '#q' . $row2['id'] . '" class="quotePost" id="z' . $row2['id'] . '" title="Quote this post">' . $row2['id'] . '</a></span>';
+
+				$file.= ' <span class="adminControls">[<a href="?/bans/add&b=' . $row['board'] . '&p=' . $row2['id'] . '">B</a> / <a href="?/bans/add&b=' . $row['board'] . '&p=' . $row2['id'] . '&d=1">&</a> / <a href="?/delete_post&b=' . $row['board'] . '&p=' . $row2['id'] . '">D</a>';
+
+				if (!empty($row2['filename'])) {
+
+					$file.= ' / <a href="?/delete_post&b=' . $row['board'] . '&p=' . $row2['id'] . '&f=1">F</a>] ';
+
+				} else {
+
+					$file.= ']';
+
+				}
+
+				if ($adm_type >= 3) {
+
+					$file.= ' [<a href="?/edit_post&b=' . $row['board'] . '&p=' . $row2['id'] . '" class="edit">E</a>]';
+
+				}
+
+				$file.= "</span>";
+
+			} elseif ($threadno != 0) {
+
+				$file.= '<span class="postNum"><a href="../res/' . $row2['resto'] . '.html#p' . $row2['id'] . '" title="Highlight this post">No.</a><a href="../res/' . $row2['resto'] . '.html#q' . $row2['id'] . '" class="quotePost" id="z' . $row2['id'] . '" title="Quote this post">' . $row2['id'] . '</a> &nbsp;</span>';
+
+			} else {
+
+				$file.= '<span class="postNum"><a href="./res/' . $row2['resto'] . '.html#p' . $row2['id'] . '" title="Highlight this post">No.</a><a href="./res/' . $row2['resto'] . '.html#q' . $row2['id'] . '" class="quotePost" id="z' . $row2['id'] . '" title="Quote this post">' . $row2['id'] . '</a> &nbsp;</span>';
+
+			}
+
+			$file.= '</div>';
+
+			$file.= $this->getFiles($row2, $row['board'], $return, $threadno, $embed_table, $extensions);
+
+			$file.= '<blockquote class="postMessage" id="m' . $row2['id'] . '">';
+
+			$wf = 1;
+
+			if (!empty($row2['capcode_text'])) {
+
+				$wf = 0;
+
+			}
+
+			if ($row2['raw'] != 1) {
+
+				if ($row2['raw'] == 2) {
+
+					if ($return == 1) {
+
+						$file.= $this->processComment($row['board'], $row2['comment'], $parser, 2, 0, $boarddata['bbcode'], $row2['id'], $row2['resto'], $wf, $replace_array);
+
+					} else {
+
+						$file.= $this->processComment($row['board'], $row2['comment'], $parser, $threadno != 0, 0, $boarddata['bbcode'], $row2['id'], $row2['resto'], $wf, $replace_array);
+
+					}
+
+				} else {
+
+					if ($return == 1) {
+
+						$file.= $this->processComment($row['board'], $row2['comment'], $parser, 2, 1, $boarddata['bbcode'], $row2['id'], $row2['resto'], $wf, $replace_array);
+
+					} else {
+
+						$file.= $this->processComment($row['board'], $row2['comment'], $parser, $threadno != 0, 1, $boarddata['bbcode'], $row2['id'], $row2['resto'], $wf, $replace_array);
+
+					}
+
+				}
+
+			} else {
+
+				$file.= $row2['comment'];
+
+			}
+
+			$file.= '</blockquote>';
+
+			$file.= "</div>";
+
+			$file.= '</div>';
+
+		}
+
+		$file.= '</div>';
+
+		$file.= '<hr />';
+
+		if (($this->config['caching_mode'] == 1) && ($threadno == 0) && ($return == 0)) {
+
+			$handle = fopen("./" . $row['board'] . "/res/" . $row['id'] . "_index.html", "w");
+
+			fwrite($handle, $file);
+
+			fclose($handle);
+
+		}
+
+		return $file;
+
+	}
+
+	/**
+	 * generateCatalog
+	 * Insert description here
+	 *
+	 * @param $board
+	 *
+	 * @return
+	 *
+	 * @access
+	 * @static
+	 * @see
+	 * @since
+	 */
+	function generateCatalog($board){
+
+		global $lang;
+
+		$board = $this->conn->real_escape_string($board);
+
+		if (!$this->mitsuba->common->isBoard($board)) {
+
+			return -16;
+
+		}
+
+		$boarddata = $this->mitsuba->common->getBoardData($board);
+
+		if ($boarddata['hidden'] == 1) {
+
+			return -666;
+
+		}
+
+		if ($boarddata['catalog'] == 0) {
+
+			return -1;
+
+		}
+
+		$extensions = array();
+
+		$result = $this->conn->query("SELECT * FROM extensions;");
+
+		while ($row = $result->fetch_assoc()) {
+
+			$extensions[$row['mimetype']]['image'] = $row['image'];
+
+		}
+
+		$wfresult = $this->conn->query("SELECT * FROM wordfilter WHERE active=1");
+
+		$replace_array = array();
+
+		while ($row = $wfresult->fetch_assoc()) {
+
+			if ($row['boards'] != "%") {
+
+				$boards = explode(",", $row['boards']);
+
+				if (in_array($board, $boards)) {
+
+					$replace_array[$row['search']] = $row['replace'];
+
+				}
+
+			} else {
+
+				$replace_array[$row['search']] = $row['replace'];
+
+			}
+
+		}
+
+		$file = $this->getBoardHeader($board, $boarddata, "board", 1);
+
+		$file.= $this->getAds($boarddata['short'], "underform");
+
+		$location = "board";
+
+		$threads = $this->conn->query("SELECT *, id as thread_id, (SELECT COUNT(*) FROM posts WHERE board='$board' AND resto = thread_id AND deleted = 0) as replies FROM posts  WHERE resto=0 AND board='$board' AND deleted=0  ORDER BY sticky DESC, lastbumped DESC");
+
+		$file.= '<div class="navLinks">[<a href="./" accesskey="a">' . $lang['img/return_c'] . '</a>] [<a href="#bottom">' . $lang['img/bottom'] . '</a>]</div>';
+
+		$file.= '<div id="content">';
+
+		$file.= '<div id="threads" class="extended-small">';
+
+		$bumporder = 0;
+
+		while ($row = $threads->fetch_assoc()) {
+
+			$bumporder++;
+
+			$sticky = $row['sticky'] ? ' sticky' : '';
+
+			$file.= '<div id="thread-' . $row['id'] . '" data-bumporder="' . $bumporder . '" data-lastbumped="' . $row['lastbumped'] . '" data-started="' . $row['date'] . '" data-replycount="' . $row['replies'] . '" class="thread' . $sticky . '">';
+
+			if (!empty($row['filename'])) {
+
+				$files = array();
+
+				if (substr($row['filename'], 0, 6) == "multi;") {
+
+					$filenames = explode(";", $row['filename']);
+
+					$orig_filenames = explode(";", $row['orig_filename']);
+
+					$filesizes = explode(";", $row['filesize']);
+
+					$imagesizes = explode(";", $row['imagesize']);
+
+					$mimetypes = explode(";", $row['mimetype']);
+
+					$t_ws = explode(";", $row['t_w']);
+
+					$t_hs = explode(";", $row['t_h']);
+
+					$num = 0;
+
+					foreach ($filenames as $filename) {
+
+						$files[$num]['filename'] = $filenames[$num + 1];
+
+						$files[$num]['orig_filename'] = $orig_filenames[$num];
+
+						$files[$num]['filesize'] = $filesizes[$num];
+
+						$files[$num]['imagesize'] = $imagesizes[$num];
+
+						$files[$num]['mimetype'] = $mimetypes[$num];
+
+						$files[$num]['t_w'] = $t_ws[$num];
+
+						$files[$num]['t_h'] = $t_hs[$num];
+
+						$num++;
+
+					}
+
+				} else {
+
+					$files[0]['filename'] = $row['filename'];
+
+					$files[0]['orig_filename'] = $row['orig_filename'];
+
+					$files[0]['filesize'] = $row['filesize'];
+
+					$files[0]['imagesize'] = $row['imagesize'];
+
+					$files[0]['mimetype'] = $row['mimetype'];
+
+					$files[0]['t_w'] = $row['t_w'];
+
+					$files[0]['t_h'] = $row['t_h'];
+
+				}
+
+				$filenum = 0;
+
+				foreach ($files as $fileinfo) {
+
+					if ($fileinfo['filename'] == "deleted") {
+
+						$file.= '<a href="./res/' . $row['id'] . '.html">';
+
+						$file.= '<img alt="" id="thumb-' . $row['id'] . '-' . $filenum . '" class="thumb" width="127" height="13" src="' . $this->mitsuba->getPath("./img/deleted.gif", $location, 1) . '">';
+
+						$file.= '</a>';
+
+					} elseif (substr($fileinfo['filename'], 0, 8) == "spoiler:") {
+
+						$file.= '<a href="./res/' . $row['id'] . '.html">';
+
+						$file.= '<img alt="" id="thumb-' . $row['id'] . '-' . $filenum . '" class="thumb" width="100" height="100" src="' . $this->mitsuba->getPath("./img/spoiler.png", $location, 1) . '">';
+
+						$file.= '</a>';
+
+					} elseif (substr($fileinfo['filename'], 0, 6) == "embed:") {
+
+						$file.= '<a href="./res/' . $row['id'] . '.html">';
+
+						$file.= '<b>Embed</b>';
+
+						$file.= '</a>';
+
+					} elseif (substr($fileinfo['filename'], -4) == "webm") {
+
+						$fileinfo['filename'] = substr($fileinfo['filename'], 0, -4);
+
+						$thumbpath = './src/thumb/' . $fileinfo['filename'] . 'gif';
+
+						$w = $fileinfo['t_w'];
+
+						$h = $fileinfo['t_h'];
+
+						$new_w = 0;
+
+						$new_h = 0;
+
+						if (($w > 150) || ($h > 150)) {
+
+							if ($w > $h) {
+
+								$new_w = 150;
+
+								$new_h = ($new_w / $w) * $h;
+
+							} elseif ($w < $h) {
+
+								$new_h = 150;
+
+								$new_w = ($new_h / $h) * $w;
+
+							} elseif ($w == $h) {
+
+								$new_h = 150;
+
+								$new_w = 150;
+
+							}
+
+						}
+
+						$file.= '<a href="./res/' . $row['id'] . '.html">';
+
+						$file.= '<img alt="" id="thumb-' . $row['id'] . '-' . $filenum . '" class="thumb" width="' . $new_w . '" height="' . $new_h . '" src="' . $thumbpath . '">';
+
+						$file.= '</a>';
+
+					} else {
+
+						$imgsize = "";
+
+						if ((isset($extensions[$fileinfo['mimetype']]['image'])) && ($extensions[$fileinfo['mimetype']]['image'] == 1)) {
+
+							$imgsize = ', ' . $fileinfo['imagesize'];
+
+						}
+
+						$thumbpath = './src/thumb/' . $fileinfo['filename'];
+
+						if (isset($extensions[$fileinfo['mimetype']]['image'])) {
+
+							if ($extensions[$fileinfo['mimetype']]['image'] == 1) {
+
+								$w = $fileinfo['t_w'];
+
+								$h = $fileinfo['t_h'];
+
+								$new_w = 0;
+
+								$new_h = 0;
+
+								if (($w > 150) || ($h > 150)) {
+
+									if ($w > $h) {
+
+										$new_w = 150;
+
+										$new_h = ($new_w / $w) * $h;
+
+									} elseif ($w < $h) {
+
+										$new_h = 150;
+
+										$new_w = ($new_h / $h) * $w;
+
+									} elseif ($w == $h) {
+
+										$new_h = 150;
+
+										$new_w = 150;
+
+									}
+
+								}
+
+								$file.= '<a href="./res/' . $row['id'] . '.html">';
+
+								$file.= '<img alt="" id="thumb-' . $row['id'] . '-' . $filenum . '" class="thumb" width="' . $new_w . '" height="' . $new_h . '" src="' . $thumbpath . '">';
+
+								$file.= '</a>';
+
+							} elseif ($extensions[$fileinfo['mimetype']]['image'] != 0) {
+
+								$file.= '<a href="./res/' . $row['id'] . '.html">';
+
+								$file.= '<b>Other file</b>';
+
+								$file.= '</a>';
+
+							}
+
+						}
+
+					}
+
+					$filenum++;
+
+				}
+
+			} else {
+
+				$file.= '<a href="./res/' . $row['id'] . '.html">';
+
+				$file.= '<b>No file</b>';
+
+				$file.= '</a>';
+
+			}
+
+			//$file .= '<div title="(R)eplies / (I)mages" id="meta-'.$row['id'].'" class="meta">R: <b>'.$row['replies'].'</b> / I: <b>'.$row['img_replies'].'</b></div>';
+
+			$file.= '<div title="(R)eplies" id="meta-' . $row['id'] . '" class="meta">R: <b>' . $row['replies'] . '</b></div>';
+
+			$subject = "";
+
+			if (!empty($row['subject'])) {
+
+				$subject = "<b>" . $row['subject'] . "</b>: ";
+
+			}
+
+			//processComment($board, $string, $parser, $thread = 0, $specialchars = 1, $bbcode = 1, $identifier = 0, $resto = 0, $wordfilter = 1, $wf_table = array())
+
+			//$file .= $this->processComment($row['board'], $row['comment'], $parser, 2, 0, $boarddata['bbcode'], $row['id'], $row['resto'], $wf, $replace_array);
+
+			//$file.= '<div class="teaser">' . $this->processComment($board, $row['comment'], $this->_parser, 2, 0, $boarddata['bbcode'], $row['id'], $row['resto'], 1, $this->_replace_array) . '&nbsp;</div>';
+
+			$file .= '<div class="teaser">'.$subject.htmlspecialchars(strtr($row['comment'], $replace_array)).'&nbsp;</div>';
+
+			$file.= '</div>';
+
+		}
+
+		$file.= '</div>';
+
+		$file.= '</div>';
+
+		$file.= '<div class="navLinks">[<a href="./" accesskey="a">' . $lang['img/return_c'] . '</a>] [<a href="#top">' . $lang['img/top'] . '</a>]</div>';
+
+		$file.= '<div class="stylechanger" id="stylechangerDiv" style="display:none;"><label for="stylechanger">' . $lang['img/style'] . '</label> <select id="stylechanger"></select></div>
+
+			</div>';
+
+		$file.= $this->getAds($boarddata['short'], "footer");
+
+		$file.= '<br /><div style="text-align: center; font-size: x-small!important; padding-bottom: 4px; padding-top: 10px; color: #333;"><span class="absBotDisclaimer">- <a href="https://github.com/314parley/Haruko" target="_top" rel="nofollow">Haruko</a> + <a href="http://github.com/MitsubaBBS/Mitsuba" target="_top" rel="nofollow">mitsuba</a> -</span></div>';
+
+		$file.= '<div id="bottom"></div>';
+
+		if ($this->config['enable_meny'] == 1) {
+
+			$file.= $this->getMenyConfig("board");
+
+		}
+
+		$file.= $this->getAds($boarddata['short'], "bottom");
+
+		$file.= "</body></html>";
+
+		$handle = fopen("./" . $board . "/catalog.html", "w");
+
+		fwrite($handle, $file);
+
+		fclose($handle);
+
+	}
+
+	/**
+	 * updateThreads
+	 * Insert description here
+	 *
+	 * @param $board
+	 *
+	 * @return
+	 *
+	 * @access
+	 * @static
+	 * @see
+	 * @since
+	 */
+	function updateThreads($board){
+
+		$board = $this->conn->real_escape_string($board);
+
+		if (!$this->mitsuba->common->isBoard($board)) {
+
+			return -16;
+
+		}
+
+		$result = $this->conn->query("SELECT id FROM posts WHERE resto=0 AND board='" . $board . "' AND deleted=0");
+
+		while ($row = $result->fetch_assoc()) {
+
+			if ($this->config['caching_mode'] == 1) {
+
+				$this->forceGetThread($board, $row['id']);
+
+			}
+
+			$this->generateView($board, $row['id']);
+
+			if ($this->config['enable_api'] == 1) {
+
+				$this->serializeThread($board, $row['id']);
+
+			}
+
+		}
+
+	}
+
+	/**
+	 * serializeBoard
+	 * Insert description here
+	 *
+	 * @param $board
+	 *
+	 * @return
+	 *
+	 * @access
+	 * @static
+	 * @see
+	 * @since
+	 */
+	function serializeBoard($board){
+		if ($this->config['enable_api'] == 0) {
+			return;
+		}
+
+		if ($this->mitsuba->common->isBoard($board)) {
+			$boarddata = $this->mitsuba->common->getBoardData($board);
+
+			if ($boarddata['bbcode'] == 1) {
+				include_once "libs/jbbcode/Parser.php";
+				$parser = new \JBBCode\Parser();
+				$bbcode = $this->conn->query("SELECT * FROM bbcodes;");
+				while ($row = $bbcode->fetch_assoc()) {
+					$parser->addBBCode($row['name'], $row['code']);
+				}
+			}
+			//preactivate the api_posts array, so PHP doesn't complain.
+			$api_posts = array();
+
+			// Let's select all posts from $board that aren't deleted.
+			$boardposts = $this->conn->query("SELECT * FROM posts WHERE board='" . $board . "' AND deleted=0");
+
+			// while there's posts in the query, continue.
+			while ($row = $boardposts->fetch_assoc()) {
+				$api_posts[] = $this->serializePost($row, $boarddata, isset($parser));
+			}
+
+			//set the api variable to api_posts
+			$api['posts'] = $api_posts;
+
+			//write the file
+			$api_handle = fopen("./" . $board . "/board.json", "w");
+			fwrite($api_handle, json_encode($api));
+			fclose($api_handle);
+
+		}
+
+	}
+
+	/**
+	 * serializeThread
+	 * Insert description here
+	 *
+	 * @param $board
+	 * @param $thread_id
+	 *
+	 * @return
+	 *
+	 * @access
+	 * @static
+	 * @see
+	 * @since
+	 */
+	function serializeThread($board, $thread_id){
+
+		if ($this->mitsuba->common->isBoard($board)) {
+
+			$thread = $this->conn->query("SELECT * FROM posts WHERE board='" . $board . "' AND id=" . $thread_id . " AND deleted=0");
+
+			if ($thread->num_rows == 1) {
+
+				$row = $thread->fetch_assoc();
+
+				include_once "libs/jbbcode/Parser.php";
+
+				$parser = new \JBBCode\Parser();
+
+				$boarddata = $this->mitsuba->common->getBoardData($board);
+
+				if ($boarddata['bbcode'] == 1) {
+
+					$bbcode = $this->conn->query("SELECT * FROM bbcodes;");
+
+					while ($row = $bbcode->fetch_assoc()) {
+
+						$parser->addBBCode($row['name'], $row['code']);
+
+					}
+
+				}
+
+				$api_posts = array();
+				$api_posts[] = $this->serializePost($row, $boarddata, $parser);
+				$posts = $this->conn->query("SELECT * FROM posts WHERE board='" . $board . "' AND resto=" . $thread_id);
+				while ($row2 = $posts->fetch_assoc()) {
+					$api_posts[] = $this->serializePost($row2, $boarddata, $parser);
+					unset($api_posts[0]);
+				}
+
+				$OP_api_posts = array();
+				$OP_api_posts[] = $this->serializePost($row, $boarddata, $parser);
+				$posts2 = $this->conn->query("SELECT * FROM posts WHERE board='" . $board . "' AND id=" . $thread_id);
+				while ($row3 = $posts2->fetch_assoc()) {
+					$OP_api_posts[] = $this->serializePost($row3, $boarddata, $parser);
+					unset($OP_api_posts[0]);
+					unset($OP_api_posts[1]['resto']);
+				}
+
+				$api_handle = fopen("./" . $board . "/res/" . $thread_id . ".json", "w");
+
+				$api['posts'] = array_merge($OP_api_posts, $api_posts);
+
+				fwrite($api_handle, json_encode($api));
+
+				fclose($api_handle);
+
+			}
+
+		}
+
+	}
+
+	/**
+	 * regenThumbnails
+	 * Insert description here
+	 *
+	 * @param $board
+	 *
+	 * @return
+	 *
+	 * @access
+	 * @static
+	 * @see
+	 * @since
+	 */
+	function regenThumbnails($board){
+
+		$board = $this->conn->real_escape_string($board);
+
+		if (!$this->mitsuba->common->isBoard($board)) {
+
+			return -16;
+
+		}
+
+		$result = $this->conn->query("SELECT filename, resto, id FROM posts WHERE board='" . $board . "'");
+
+		while ($row = $result->fetch_assoc()) {
+
+			if ((!empty($row['filename'])) && ($row['filename'] != "deleted")) {
+
+				$ext = explode('.', $row['filename']);
+
+				$row['filename'] = $ext[0];
+
+				$ext = '.' . $ext[1];
+
+				if (substr($row['filename'], 0, 8) == "spoiler:") {
+
+					if ($row['resto'] != 0) {
+
+						$info = $this->mitsuba->common->thumb($board, substr($row['filename'], 8), $ext, 125);
+
+						if (!empty($info['width'])) {
+
+							$this->conn->query("UPDATE posts SET t_w=" . $info['width'] . ", t_h=" . $info['height'] . " WHERE id=" . $row['id'] . " AND board='" . $board . "'");
+
+						}
+
+					} else {
+						//erroring out at "8"??
+						$info = $this->mitsuba->common->thumb($board, substr($row['filename'], $ext, 8), $ext, 125);
+
+						if (!empty($info['width'])) {
+
+							$this->conn->query("UPDATE posts SET t_w=" . $info['width'] . ", t_h=" . $info['height'] . " WHERE id=" . $row['id'] . " AND board='" . $board . "'");
+
+						}
+
+					}
+
+				} elseif (substr($row['filename'], 0, 6) != "embed:") {
+
+					if ($row['resto'] != 0) {
+
+						$info = $this->mitsuba->common->thumb($board, $row['filename'], $ext, 125);
+
+						if (!empty($info['width'])) {
+
+							$this->conn->query("UPDATE posts SET t_w=" . $info['width'] . ", t_h=" . $info['height'] . " WHERE id=" . $row['id'] . " AND board='" . $board . "'");
+
+						}
+
+					} else {
+
+						$info = $this->mitsuba->common->thumb($board, $row['filename'], $ext);
+
+						if (!empty($info['width'])) {
+
+							$this->conn->query("UPDATE posts SET t_w=" . $info['width'] . ", t_h=" . $info['height'] . " WHERE id=" . $row['id'] . " AND board='" . $board . "'");
+
+						}
+
+					}
+
+				}
+
+			}
+
+		}
+
+	}
+
+	/**
+	 * getMenu
+	 * Insert description here
+	 *
+	 * @param $location
+	 * @param $target
+	 *
+	 * @return
+	 *
+	 * @access
+	 * @static
+	 * @see
+	 * @since
+	 */
+	function getMenu($location, $target = ""){
+
+		if (!empty($target)) {
+
+			$target = ' target="' . $target . '"';
+
+		}
+
+		$menu = "<h1>" . $this->config['sitename'] . "</h1>";
+
+		$cats = $this->conn->query("SELECT * FROM links WHERE parent=-1 ORDER BY short ASC;");
+
+		while ($row = $cats->fetch_assoc()) {
+
+			$menu.= '<h2>' . $row['title'] . '</h2>';
+
+			$menu.= '<div id="' . $row['short'] . '" style="">
+
+				<ul>';
+
+			$children = $this->conn->query("SELECT * FROM links WHERE parent=" . $row['id']);
+
+			while ($child = $children->fetch_assoc()) {
+
+				if ($child['relative'] == 1) {
+
+					$menu.= '<li><a href="' . $this->mitsuba->getPath($child['url'], $location, 1) . '"' . $target . '>/' . $child['short'] . '/ - ' . $child['title'] . '</a></li>';
+
+				} elseif ($row['relative'] == 2) {
+
+					$menu.= '<li><a href="' . $this->mitsuba->getPath("./" . $child['url'] . "/", $location, 1) . '"' . $target . '>/' . $child['short'] . '/ - ' . $child['title'] . '</a></li>';
+
+				} else {
+
+					$menu.= '<li><a href="' . $child['url'] . '"' . $target . '>/' . $child['short'] . '/ - ' . $child['title'] . '</a></li>';
+
+				}
+
+			}
+
+			$menu.= '</ul></div>';
+
+		}
+
+		return $menu;
+
+	}
+
+	/**
+	 * generateFrontpage
+	 * Insert description here
+	 *
+	 * @param $action
+	 *
+	 * @return
+	 *
+	 * @access
+	 * @static
+	 * @see
+	 * @since
+	 */
+	function generateFrontpage($action = "none"){
+
+		if (file_exists("./inc/frontpage/" . $this->config['frontpage_style'])) {
+
+			include_once "./inc/frontpage/" . $this->config['frontpage_style'];
+
+			$fpage = new Frontpage($this->conn, $this->mitsuba);
+
+			$fpage->generateFrontpage($action);
+
+		}
+
+	}
+
+	/**
+	 * generateNews
+	 * Insert description here
+	 *
+	 * @return
+	 *
+	 * @access
+	 * @static
+	 * @see
+	 * @since
+	 */
+	function generateNews(){
+
+		if (file_exists("./inc/frontpage/" . $this->config['frontpage_style'])) {
+
+			include_once "./inc/frontpage/" . $this->config['frontpage_style'];
+
+			$fpage = new Frontpage($this->conn, $this->mitsuba);
+
+			$fpage->generateNews();
+
+		}
+
+	}
+
+	/**
+	 * getFiles
+	 * Insert description here
+	 *
+	 * @param $row
+	 * @param $board
+	 * @param $return
+	 * @param $threadno
+	 * @param $embed_table
+	 * @param $extensions
+	 *
+	 * @return
+	 *
+	 * @access
+	 * @static
+	 * @see
+	 * @since
+	 */
+	function getFiles($row, $board, $return, $threadno, $embed_table, $extensions){
+
+		$file = "";
+
+		if ($return == 1) {
+
+			$location = "index";
+
+		} elseif ($threadno != 0) {
+
+			$location = "thread";
+
+		} else {
+
+			$location = "board";
+
+		}
+
+		if (!empty($row['filename'])) {
+
+			$files = array();
+
+			if (substr($row['filename'], 0, 6) == "multi;") {
+
+				$filenames = explode(";", $row['filename']);
+
+				$orig_filenames = explode(";", $row['orig_filename']);
+
+				$filesizes = explode(";", $row['filesize']);
+
+				$imagesizes = explode(";", $row['imagesize']);
+
+				$mimetypes = explode(";", $row['mimetype']);
+
+				$t_ws = explode(";", $row['t_w']);
+
+				$t_hs = explode(";", $row['t_h']);
+
+				$num = 0;
+
+				foreach ($filenames as $filename) {
+
+					$files[$num]['filename'] = $filenames[$num + 1];
+
+					$files[$num]['orig_filename'] = $orig_filenames[$num];
+
+					$files[$num]['filesize'] = $filesizes[$num];
+
+					$files[$num]['imagesize'] = $imagesizes[$num];
+
+					$files[$num]['mimetype'] = $mimetypes[$num];
+
+					$files[$num]['t_w'] = $t_ws[$num];
+
+					$files[$num]['t_h'] = $t_hs[$num];
+
+					$num++;
+
+				}
+
+			} else {
+
+				$files[0]['filename'] = $row['filename'];
+
+				$files[0]['orig_filename'] = $row['orig_filename'];
+
+				$files[0]['filesize'] = $row['filesize'];
+
+				$files[0]['imagesize'] = $row['imagesize'];
+
+				$files[0]['mimetype'] = $row['mimetype'];
+
+				$files[0]['t_w'] = $row['t_w'];
+
+				$files[0]['t_h'] = $row['t_h'];
+
+			}
+
+			$filenum = 0;
+
+			foreach ($files as $fileinfo) {
+
+				if (substr($fileinfo['filename'], 0, 4) == "url:") {
+
+					$file.= '<div class="file" id="f' . $row['id'] . "_" . $filenum . '">';
+
+					$file.= '<div class="fileInfo">';
+
+					$file.= '<span class="fileText" id="fT' . $row['id'] . "_" . $filenum . '">File: <a href="' . substr($fileinfo['filename'], 4) . '">' . htmlspecialchars($fileinfo['orig_filename']) . '</a></span>';
+
+					$file.= '</div>';
+
+				} elseif ($fileinfo['filename'] == "deleted") {
+
+					$file.= '<div class="file" id="f' . $row['id'] . "_" . $filenum . '">';
+
+					$file.= '<div class="fileInfo">';
+
+					$file.= '<span class="fileText" id="fT' . $row['id'] . "_" . $filenum . '">File: <b>deleted</b></span>';
+
+					$file.= '</div>';
+
+					if ($return == 1) {
+
+						$file.= '<a class="fileThumb" target="_blank"><img src="./img/deleted.gif" alt="Deleted"/></a>';
+
+					} elseif ($threadno != 0) {
+
+						$file.= '<a class="fileThumb" target="_blank"><img src="../../img/deleted.gif" alt="Deleted"/></a>';
+
+					} else {
+
+						$file.= '<a class="fileThumb" target="_blank"><img src="../img/deleted.gif" alt="Deleted"/></a>';
+
+					}
+
+					$file.= '</div>';
+
+				} elseif (substr($fileinfo['filename'], 0, 8) == "spoiler:") {
+
+					$file.= '<div class="file" id="f' . $row['id'] . "_" . $filenum . '">';
+
+					$file.= '<div class="fileInfo">';
+
+					if ($return == 1) {
+
+						$file.= '<span class="fileText" id="fT' . $row['id'] . "_" . $filenum . '">File: <a href="./' . $board . '/src/' . substr($fileinfo['filename'], 8) . '" target="_blank"><b>Spoiler</b></a></span>';
+
+					} elseif ($threadno != 0) {
+
+						$file.= '<span class="fileText" id="fT' . $row['id'] . "_" . $filenum . '">File: <a href="../../' . $board . '/src/' . substr($fileinfo['filename'], 8) . '" target="_blank"><b>Spoiler</b></a></span>';
+
+					} else {
+
+						$file.= '<span class="fileText" id="fT' . $row['id'] . "_" . $filenum . '">File: <a href="../' . $board . '/src/' . substr($fileinfo['filename'], 8) . '" target="_blank"><b>Spoiler</b></a></span>';
+
+					}
+
+					$file.= '</div>';
+
+					$filepath = "";
+
+					$thumbpath = "";
+
+					if ($return == 1) {
+
+						$filepath = './' . $board . '/src/' . substr($fileinfo['filename'], 8);
+
+						$thumbpath = './' . $board . '/src/thumb/' . substr($fileinfo['filename'], 8);
+
+					} elseif ($threadno != 0) {
+
+						$filepath = '../../' . $board . '/src/' . substr($fileinfo['filename'], 8);
+
+						$thumbpath = '../../' . $board . '/src/thumb/' . substr($fileinfo['filename'], 8);
+
+					} else {
+
+						$filepath = './../' . $board . '/src/' . substr($fileinfo['filename'], 8);
+
+						$thumbpath = './../' . $board . '/src/thumb/' . substr($fileinfo['filename'], 8);
+
+					}
+
+					$file.= '<a class="fileThumb" href="' . $filepath . '" target="_blank"><img src="' . $this->mitsuba->getPath("./img/spoiler.png", $location, 1) . '" alt="Spoiler image" style="width: 170px"/></a>';
+
+					$file.= '</div>';
+
+				} elseif (substr($fileinfo['filename'], 0, 6) == "embed:") {
+
+					$file.= '<div class="file" id="f' . $row['id'] . "_" . $filenum . '">';
+
+					$file.= '<div class="fileInfo">';
+
+					$file.= '<span class="fileText" id="fT' . $row['id'] . "_" . $filenum . '">File: <b>Embed</b></span>';
+
+					$file.= '</div>';
+
+					$file.= '<a class="fileThumb">' . $this->mitsuba->common->getEmbed(substr($fileinfo['filename'], 6), $embed_table) . '</a>';
+
+					$file.= '</div>';
+
+				} elseif (substr($fileinfo['filename'], -4) == "webm") {
+
+					$fileinfo['filename'] = substr($fileinfo['filename'], 0, -4);
+
+					if ($return == 1) {
+
+						$filepath = './' . $board . '/src/' . $fileinfo['filename'];
+
+						$thumbpath = './' . $board . '/src/thumb/' . $fileinfo['filename'];
+
+					} elseif ($threadno != 0) {
+
+						$filepath = '../../' . $board . '/src/' . $fileinfo['filename'];
+
+						$thumbpath = '../../' . $board . '/src/thumb/' . $fileinfo['filename'];
+
+					} else {
+
+						$filepath = './../' . $board . '/src/' . $fileinfo['filename'];
+
+						$thumbpath = './../' . $board . '/src/thumb/' . $fileinfo['filename'];
+
+					}
+
+					$filepath.= "webm";
+
+					$thumbpath.= "gif";
+
+					$file.= '
+
+					<div class="file" id="f' . $row['id'] . '">
+
+					<div class="fileInfo">
+
+						<span class="fileText" id="fT' . $row['id'] . "_" . $filenum . '"><a href="' . $filepath . '" target="_blank">File</a>: (' . $fileinfo['filesize'] . ', <span title="' . $fileinfo['orig_filename'] . '">' . $fileinfo['orig_filename'] . '</span>)</span>
+
+					</div>
+
+					<a class="fileThumb webm" href="' . $filepath . '" target="_blank">
+
+					<img src="' . $thumbpath . '"/>
+
+					</a>
+
+
+
+					</div>
+
+					';
+
+				}elseif (substr($fileinfo['filename'], -3) == "mp4") {
+
+					$fileinfo['filename'] = substr($fileinfo['filename'], 0, -4);
+
+					if ($return == 1) {
+
+						$filepath = './' . $board . '/src/' . $fileinfo['filename'];
+
+						$thumbpath = './' . $board . '/src/thumb/' . $fileinfo['filename'];
+
+					} elseif ($threadno != 0) {
+
+						$filepath = '../../' . $board . '/src/' . $fileinfo['filename'];
+
+						$thumbpath = '../../' . $board . '/src/thumb/' . $fileinfo['filename'];
+
+					} else {
+
+						$filepath = './../' . $board . '/src/' . $fileinfo['filename'];
+
+						$thumbpath = './../' . $board . '/src/thumb/' . $fileinfo['filename'];
+
+					}
+
+					$filepath.= ".mp4";
+
+					$thumbpath.= ".gif";
+
+					$file.= '
+
+          					<div class="file" id="f' . $row['id'] . '">
+
+          					<div class="fileInfo">
+
+          						<span class="fileText" id="fT' . $row['id'] . "_" . $filenum . '"><a href="' . $filepath . '" target="_blank">File</a>: (' . $fileinfo['filesize'] . ', <span title="' . $fileinfo['orig_filename'] . '">' . $fileinfo['orig_filename'] . '</span>)</span>
+
+          					</div>
+
+          					<a class="fileThumb webm" href="' . $filepath . '" target="_blank">
+
+          					<img src="' . $thumbpath . '"/>
+
+          					</a>
+
+
+
+          					</div>
+
+          					';
+
+				} else {
+
+					$file.= '<div class="file" id="f' . $row['id'] . "_" . $filenum . '">';
+
+					$file.= '<div class="fileInfo">';
+
+					$imgsize = "";
+
+					if ((isset($extensions[$fileinfo['mimetype']]['image'])) && ($extensions[$fileinfo['mimetype']]['image'] == 1)) {
+
+						$imgsize = ', ' . $fileinfo['imagesize'];
+
+					}
+
+					if ($return == 1) {
+
+						$file.= '<span class="fileText" id="fT' . $row['id'] . "_" . $filenum . '"><a href="./' . $board . '/src/' . $fileinfo['filename'] . '" target="_blank">File</a>: (' . $fileinfo['filesize'] . $imgsize . ', <span title="' . $fileinfo['orig_filename'] . '">' . $fileinfo['orig_filename'] . '</span>)</span>';
+
+					} elseif ($threadno != 0) {
+
+						//user is in thread
+
+						$file.= '<span class="fileText" id="fT' . $row['id'] . "_" . $filenum . '"><a href="../../' . $board . '/src/' . $fileinfo['filename'] . '" target="_blank">File</a>: (' . $fileinfo['filesize'] . $imgsize . ', <span title="' . $fileinfo['orig_filename'] . '">' . $fileinfo['orig_filename'] . '</span>)</span>';
+
+					} else {
+
+						//board index
+
+						//$file .= '<span class="fileText" id="fT'.$row['id']."_".$filenum.'"><a href="../'.$board.'/src/'.$fileinfo['filename'].'" target="_blank">File</a>: ('.$fileinfo['filesize'].$imgsize.', <span title="'.$fileinfo['orig_filename'].'">'.$fileinfo['orig_filename'].'</span>)</span>';
+
+						$file.= '<span class="fileText" id="fT' . $row['id'] . "_" . $filenum . '">
+
+						File: <a href="../' . $board . '/src/' . $fileinfo['filename'] . '" target="_blank">' . $fileinfo['filename'] . '</a> (' . $fileinfo['filesize'] . $imgsize . ')
+
+						</span>';
+
+					}
+
+					$file.= '</div>';
+
+					$filepath = "";
+
+					$thumbpath = "";
+
+					if ($return == 1) {
+
+						$filepath = './' . $board . '/src/' . $fileinfo['filename'];
+
+						$thumbpath = './' . $board . '/src/thumb/' . $fileinfo['filename'];
+
+					} elseif ($threadno != 0) {
+
+						$filepath = '../../' . $board . '/src/' . $fileinfo['filename'];
+
+						$thumbpath = '../../' . $board . '/src/thumb/' . $fileinfo['filename'];
+
+					} else {
+
+						$filepath = '../' . $board . '/src/' . $fileinfo['filename'];
+
+						$thumbpath = '../' . $board . '/src/thumb/' . $fileinfo['filename'];
+
+					}
+
+					if (isset($extensions[$fileinfo['mimetype']]['image'])) {
+
+						if ($extensions[$fileinfo['mimetype']]['image'] == 1) {
+							//js enabled
+							$file.= '<a class="fileThumb iff-javascript-enabled" href="' . $filepath . '" target="_blank"><img class="b-lazy" src="data:image/gif;base64,R0lGODlhAQABAAAAACH5BAEKAAEALAAAAAABAAEAAAICTAEAOw==" data-src="' . $thumbpath . '" alt="Thumbnail" style="width: ' . $fileinfo['t_w'] . 'px; height: ' . $fileinfo['t_h'] . 'px"/></a>';
+							//noscript
+							$file.= '<noscript><a class="fileThumb" href="' . $filepath . '" target="_blank"><img src="' . $thumbpath . '" alt="Thumbnail" style="width: ' . $fileinfo['t_w'] . 'px; height: ' . $fileinfo['t_h'] . 'px"/></a></noscript>';
+
+
+							/*
+
+                            $file .= '<a class="fileThumb" href="'.$filepath.'" target="_blank">';
+
+                            if($fileinfo['t_w'] <= 250 && $fileinfo['t_h'] <= 250) {
+
+                            $file .= '<img src="'.$filepath.'" alt="Thumbnail kurwa" style="width: '.$fileinfo['t_w'].'px;"/></a>';
+
+                            } else {
+
+                            $file .= '<img src="'.$thumbpath.'" alt="Thumbnail xD" style="width: '.$fileinfo['t_w'].'px;"/></a>';
+
+                            }*/
+
+						} elseif ($extensions[$fileinfo['mimetype']]['image'] != 0) {
+
+							$file.= sprintf($extensions[$fileinfo['mimetype']]['image'], $filepath);
+
+						}
+
+					}
+
+					$file.= '</div>';
+
+				}
+
+				$filenum++;
+
+			}
+
+		}
+
+		return $file;
+
+	}
+
+	/**
+	 * serializePost
+	 * Insert description here
+	 *
+	 * @param $row
+	 * @param $boarddata
+	 * @param $parser
+	 *
+	 * @return
+	 *
+	 * @access
+	 * @static
+	 * @see
+	 * @since
+	 */
+	function serializePost($row, $boarddata, $parser){
+		$post = array();
+
+		if (isset($row['id']) == 1) {
+			$post['no'] = (int)$row['id'];
+		}
+
+		if (isset($row['resto']) == 1) {
+			$post['resto'] = (int)$row['resto'];
+		}
+
+		if (isset($row['sticky']) == 1) {
+			$post['sticky'] = 1;
+		}
+
+		if (isset($row['locked']) == 1) {
+			$post['closed'] = 1;
+		}
+
+		if (isset($row['date']) == 1) {
+			$post['now'] = date("d/m/Y(D)H:i:s", $row['date']);
+		}
+
+		if (isset($row['date']) == 1) {
+			$post['time'] = (int)$row['date'];
+		}
+
+		if (isset($row['name']) == 1) {
+			$post['name'] = $row['name'];
+		}
+
+		if (!empty($row['trip'])) {
+			$post['trip'] = "!" . $row['trip'];
+		}
+
+		if (!empty($row['capcode_text'])) {
+			$post['id'] = $row['capcode_text'];
+		} else {
+			if ((!empty($row['poster_id'])) && ($boarddata['ids'] == 1)) {
+				$post['id'] = $row['poster_id'];
+			}
+		}
+
+		if (!empty($row['capcode_text'])) {
+			$post['capcode'] = $row['capcode_text'];
+		}
+
+		if (!empty($row['email'])) {
+			$post['email'] = $row['email'];
+		}
+
+		if (!empty($row['subject'])) {
+			$post['sub'] = $row['subject'];
+		}
+
+		if (isset($row['raw']) != 1) {
+			if (isset($row['raw']) == 2) {
+				$post['com'] = $this->processComment($boarddata['short'], $row['comment'], $parser, 2, 0, $boarddata['bbcode'], $row['id'], $row['resto']);
+			} else {
+				$post['com'] = $this->processComment($boarddata['short'], isset($row['comment']), $parser, 2, 1, $boarddata['bbcode'], isset($row['id']), isset($row['resto']));
+			}
+		} else {
+			$post['com'] = $row['comment'];
+		}
+
+		if (!empty($row['filename'])) {
+			if (substr($row['filename'], 0, 6) == "multi;") {
+				$files = array();
+				$filenames = explode(";", $row['filename']);
+				$orig_filenames = explode(";", $row['orig_filename']);
+				$filesizes = explode(";", $row['orig_filesize']);
+				$imagesizes = explode(";", $row['imagesize']);
+				$mimetypes = explode(";", $row['mimetype']);
+				$t_ws = explode(";", $row['t_w']);
+				$t_hs = explode(";", $row['t_h']);
+				$num = 0;
+
+				foreach ($filenames as $filename) {
+					$files[$num]['filename'] = $filenames[$num + 1];
+					$files[$num]['orig_filename'] = $orig_filenames[$num];
+					$files[$num]['filesize'] = $filesizes[$num];
+					$files[$num]['imagesize'] = $imagesizes[$num];
+					$files[$num]['mimetype'] = $mimetypes[$num];
+					$files[$num]['t_w'] = $t_ws[$num];
+					$files[$num]['t_h'] = $t_hs[$num];
+					$num++;
+				}
+
+				$filenum = 0;
+
+				foreach ($files as $fileinfo) {
+					if ($row['filename'] != "deleted") {
+						if (substr($row['filename'], 0, 8) == "spoiler:") {
+							$pinfo = pathinfo(substr($row['filename'], 8));
+							$pinfoo = pathinfo($row['orig_filename']);
+							$file = array();
+							$file['tim'] = $pinfo['filename'];
+							$file['filename'] = $pinfoo['filename'];
+							$file['ext'] = "." . $pinfo['extension'];
+							$file['fsize'] = $row['orig_filesize'];
+							$file['mimetype'] = $row['mimetype'];
+							$sze = explode("x", $row['imagesize']);
+							$file['w'] = $sze[0];
+							$file['h'] = $sze[1];
+							$file['t_w'] = $row['t_w'];
+							$file['t_h'] = $row['t_h'];
+							$file['spoiler'] = 1;
+							$post['files'][] = $file;
+						} elseif (substr($row['filename'], 0, 6) == "embed:") {
+							$file['embed'] = 1;
+							$file['embed_url'] = substr($row['filename'], 6);
+						} else {
+							$pinfo = pathinfo($row['filename']);
+							$pinfoo = pathinfo($row['orig_filename']);
+
+							$file = array();
+							$file['tim'] = $pinfo['filename'];
+							$file['filename'] = $pinfoo['filename'];
+							$file['ext'] = "." . $pinfo['extension'];
+							$file['fsize'] = $row['orig_filesize'];
+							$file['mimetype'] = $row['mimetype'];
+							$sze = explode("x", $row['imagesize']);
+							$file['w'] = $sze[0];
+							$file['h'] = $sze[1];
+							$file['t_w'] = $row['t_w'];
+							$file['t_h'] = $row['t_h'];
+							$post['files'][] = $file;
+						}
+					} else {
+						$file = array();
+						$file['filedeleted'] = 1;
+						$post['files'][] = $file;
+					}
+				}
+			} else {
+				if ($row['filename'] != "deleted") {
+					if (substr($row['filename'], 0, 8) == "spoiler:") {
+						$pinfo = pathinfo(substr($row['filename'], 8));
+						$pinfoo = pathinfo($row['orig_filename']);
+						$file = array();
+						$file['tim'] = $pinfo['filename'];
+						$file['filename'] = $pinfoo['filename'];
+						$file['ext'] = "." . $pinfo['extension'];
+						$file['fsize'] = $row['orig_filesize'];
+						$file['mimetype'] = $row['mimetype'];
+						$sze = explode("x", $row['imagesize']);
+						$file['w'] = $sze[0];
+						$file['h'] = $sze[1];
+						$file['t_w'] = $row['t_w'];
+						$file['t_h'] = $row['t_h'];
+						$file['spoiler'] = 1;
+						$post['files'][] = $file;
+					} elseif (substr($row['filename'], 0, 6) == "embed:") {
+						$file['embed'] = 1;
+						$file['embed_url'] = substr($row['filename'], 6);
+					} else {
+						$pinfo = pathinfo($row['filename']);
+						$pinfoo = pathinfo($row['orig_filename']);
+
+						$file = array();
+						$file['tim'] = $pinfo['filename'];
+						$file['filename'] = $pinfoo['filename'];
+						$file['ext'] = "." . $pinfo['extension'];
+						$file['fsize'] = $row['orig_filesize'];
+						$file['mimetype'] = $row['mimetype'];
+						$sze = explode("x", $row['imagesize']);
+						$file['w'] = $sze[0];
+						$file['h'] = $sze[1];
+						$file['t_w'] = $row['t_w'];
+						$file['t_h'] = $row['t_h'];
+						$post['files'][] = $file;
+					}
+				} else {
+					$post['filedeleted'] = 1;
+				}
+			}
+		}
+		return $post;
+	}
+
+	/**
+	 * rebuildBoardCache
+	 * Insert description here
+	 *
+	 * @param $board
+	 *
+	 * @return
+	 *
+	 * @access
+	 * @static
+	 * @see
+	 * @since
+	 */
+	function rebuildBoardCache($board){
+
+		$this->regenIDs($board);
+
+		$this->updateThreads($board);
+
+		$this->generateView($board);
+
+		$this->generateCatalog($board);
+
+		$this->serializeBoard($board);
+
+	}
+
+	/**
+	 * regenIDs
+	 * Insert description here
+	 *
+	 * @param $board
+	 *
+	 * @return
+	 *
+	 * @access
+	 * @static
+	 * @see
+	 * @since
+	 */
+	function regenIDs($board){
+
+		if ($this->mitsuba->common->isBoard($board)) {
+
+			$bdata = $this->mitsuba->common->getBoardData($board);
+
+			if ($bdata['ids'] == 1) {
+
+				$result = $this->conn->query("SELECT * FROM posts WHERE board='" . $board . "'");
+
+				while ($row = $result->fetch_assoc()) {
+
+					$poster_id = "";
+
+					if (empty($row['poster_id'])) {
+
+						if ($row['resto'] != 0) {
+
+							$poster_id = $this->mitsuba->common->mkid($row['ip'], $row['resto'], $board);
+
+						} else {
+
+							$poster_id = $this->mitsuba->common->mkid($row['ip'], $row['id'], $board);
+
+						}
+
+						$this->conn->query("UPDATE posts SET poster_id='" . $poster_id . "' WHERE id=" . $row['id'] . " AND board='" . $board . "'");
+
+					}
+
+				}
+
+			}
+
+		}
+
+	}
+
+	/**
+	 * generatePost
+	 * Insert description here
+	 *
+	 * @param $board
+	 * @param $identifier
+	 *
+	 * @return
+	 *
+	 * @access
+	 * @static
+	 * @see
+	 * @since
+	 */
+	function generatePost($board, $identifier){
+
+		if ((empty($identifier)) || (!is_numeric($identifier))) {
+
+			return -15;
+
+		}
+
+		if ((empty($identifier)) || (!$this->mitsuba->common->isBoard($board))) {
+
+			return -16;
+
+		}
+
+		$result = $this->conn->query("SELECT * FROM posts WHERE id=" . $identifier . " AND board='" . $board . "' AND deleted=0");
+
+		if ($result->num_rows == 1) {
+
+			$post = $result->fetch_assoc();
+
+			if ($post['resto'] == 0) {
+
+				$this->generateCatalog($board);
+
+				$this->generateView($board, $post['id']);
+
+			} else {
+
+				$this->generateView($board, $post['resto']);
+
+			}
+
+			$this->generateView($board);
+
+			$this->serializeBoard($board);
+
+		}
+
+	}
+
+}
+
+?>

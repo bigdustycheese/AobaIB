@@ -1,0 +1,302 @@
+<?php
+
+namespace Mitsuba;
+
+/**
+ * Linkshare
+ * Insert description here
+ *
+ * @category
+ * @package
+ * @author
+ * @copyright
+ * @license
+ * @version
+ * @link
+ * @see
+ * @since
+ */
+class Linkshare
+{
+
+    private $conn;
+
+    private $mitsuba;
+
+    /**
+     * __construct
+     * Insert description here
+     *
+     * @param $connection
+     * @param $mitsuba
+     *
+     * @return
+     *
+     * @access
+     * @static
+     * @see
+     * @since
+     */
+    function __construct($connection, &$mitsuba)
+    {
+
+        $this->conn = $connection;
+
+        $this->mitsuba = $mitsuba;
+
+    }
+
+    /**
+     * prepareUrl
+     * Insert description here
+     *
+     * @param $url
+     *
+     * @return
+     *
+     * @access
+     * @static
+     * @see
+     * @since
+     */
+    function prepareUrl($url)
+    {
+
+        $retn = $url;
+
+        if (strncmp($url, "www", 3) == 0) {
+
+            $retn = "http://" . $url;
+
+        }
+
+        if (strncmp($url, "https://", 8) == 0) {
+
+            $retn = str_ireplace("https://", "http://", $url);
+
+        }
+
+        if (!filter_var($retn, FILTER_VALIDATE_URL)) {
+
+            $retn = false;
+
+        }
+
+        return $retn;
+
+    }
+
+    /**
+     * checkUrl
+     * Insert description here
+     *
+     * @param $url
+     *
+     * @return
+     *
+     * @access
+     * @static
+     * @see
+     * @since
+     */
+    function checkUrl($url)
+    {
+
+        $parserFile = false;
+
+        if (strncmp($url, 'http', 4) != 0) {
+
+            return false;
+
+        }
+
+        $result = $this->conn->query("SELECT * FROM `link`");
+
+        while ($row = $result->fetch_row()) {
+
+            if (preg_match($row[1], $url)) {
+
+                $parserFile = $row[2];
+
+                break;
+
+            }
+
+        }
+
+        return $parserFile;
+
+    }
+
+    /**
+     * getStatus
+     * Insert description here
+     *
+     * @param $url
+     *
+     * @return
+     *
+     * @access
+     * @static
+     * @see
+     * @since
+     */
+    function getStatus($url)
+    {
+
+        if (strncmp($url, 'http', 4) != 0) {
+
+            return false;
+
+        }
+
+        $test = get_headers($url);
+
+        $test = strstr($test[0], "200"); //HTTP OK
+
+        return ($test == true);
+
+    }
+
+    /**
+     * openLinkParser
+     * Insert description here
+     *
+     * @param $parser
+     *
+     * @return
+     *
+     * @access
+     * @static
+     * @see
+     * @since
+     */
+    function openLinkParser($parser)
+    {
+
+        if (file_exists("inc/links/" . $parser)) {
+
+            //parser isn't working at this time
+
+            include "links/" . $parser;
+
+            return true;
+
+        } else {
+
+            return false;
+
+        }
+
+    }
+
+    /**
+     * getTitle
+     * Insert description here
+     *
+     * @param $url
+     * @param $parserOpened
+     *
+     * @return
+     *
+     * @access
+     * @static
+     * @see
+     * @since
+     */
+    function getTitle($url, $parserOpened)
+    {
+
+        $title = "";
+
+        if ($parserOpened) {
+
+            $title = parseGetTitle($url);
+
+        }
+
+        if (!$title) {
+
+            $page = file_get_contents($url);
+
+            if (strlen($page) > 0) {
+
+                preg_match("/\<title\>(.*)\<\/title\>/", $page, $pt);
+
+                $title = $pt[1];
+
+            } else {
+
+                $title = "None";
+
+            }
+
+        }
+
+        return $title;
+
+    }
+
+    /**
+     * getSize
+     * Insert description here
+     *
+     * @param $url
+     * @param $parserOpened
+     *
+     * @return
+     *
+     * @access
+     * @static
+     * @see
+     * @since
+     */
+    function getSize($url, $parserOpened)
+    {
+
+        if ($parserOpened) {
+
+            return parseGetSize($url);
+
+        } else {
+
+            return false;
+
+        }
+
+    }
+
+    /**
+     * getServiceName
+     * Insert description here
+     *
+     * @param $url
+     * @param $parserOpened
+     *
+     * @return
+     *
+     * @access
+     * @static
+     * @see
+     * @since
+     */
+    function getServiceName($url, $parserOpened)
+    {
+
+        if ($parserOpened) {
+
+            return parseGetServiceName();
+
+        } else {
+
+            $parse = parse_url($url);
+
+            return $parse['host'];
+
+        }
+
+    }
+
+}
+
+?>

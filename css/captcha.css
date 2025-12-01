@@ -1,0 +1,211 @@
+div.captcha {
+    background: #d3d3d3;
+    color: #000;
+    width: 200px!important;
+    height: 35px!important;
+    font-size: 25px;
+    height: 12px;
+}
+label[for="c1"]{
+margin-top: 3px;
+}
+
+input[type="checkbox"] {
+    /*display:none;*/
+}
+input[type="checkbox"] + label span {
+    display:inline-block;
+    width:19px;
+    height:19px;
+    margin:-5px 4px -1px 5px;
+    vertical-align:middle;
+    background: #dee1e2;
+    border-radius: 4px;
+    border: 1px solid #555;
+    position: relative;
+    bottom: 1px;
+    cursor:pointer;
+}
+input[type="checkbox"]:not(:checked) + label span {
+     content: "";
+     background: transparent;
+     margin:-5px 9px -1px 5px;
+     top: 0px;
+     width: 5px;
+     border-bottom: 3px solid #4D7C2A!important;
+     height: 11px;
+     border-right: 3px solid #4D7C2A!important;
+     border-top: none!important;
+     border-left: none!important;
+     transform: rotate(45deg);
+     -o-transform: rotate(45deg);
+     -ms-transform: rotate(45deg);
+     -webkit-transform: rotate(45deg);
+}
+
+input[type="checkbox"]:not(:checked) + label span {
+     content: "";
+     background: transparent;
+     margin:-5px 9px -1px 5px;
+     top: 0px;
+     width: 5px;
+     border-bottom: 3px solid #4D7C2A!important;
+     height: 11px;
+     border-right: 3px solid #4D7C2A!important;
+     border-top: none!important;
+     border-left: none!important;
+     transform: rotate(45deg);
+     -o-transform: rotate(45deg);
+     -ms-transform: rotate(45deg);
+     -webkit-transform: rotate(45deg);
+}
+.column-main{
+  width: 227.33px;
+}
+
+.column-aside img.icon {
+    /*width: 16px;*/
+    height: 13px;
+    vertical-align: middle;
+    margin: 0 4px 0 9px;
+}
+.column-aside {
+  float: right;
+  /*overflow: auto;*/
+}
+.column-aside a{
+  font-size: 8px;
+  text-decoration: none;
+  display: inline;
+  position: relative;
+  color:#4a4a4a;
+  /*top: -22px;
+  right: -232px;*/
+}
+
+.column-aside a:hover{
+  text-decoration: underline;
+}
+.column-aside h2 {
+  font-size: 11px;
+  margin: 0;
+  color: #4a4a4a;
+  padding-left: 10px;
+}
+.dash {
+  font-size: 8px;
+  text-decoration: none;
+  display: inline;
+  position: relative;
+}
+object {
+  width: 420px;
+  height: 200px;
+}
+.captchaContainer {
+  background-color: #f9f9f9;
+  border: 1px solid #d4d4d4;
+  padding: 15px 40px 15px 30px;
+}
+.captchaWrapper {
+  line-height: 0;
+}
+.captchaWrapper, .captchaContainer {
+  display: inline-block;
+  float: left;
+}
+#hiddenCaptcha {
+  display: none;
+}
+#hiddenCaptcha:not(:checked) + .captchaLabel:after {
+  max-width: 25px;
+  opacity: 1;
+  overflow: inherit;
+  top: 2.1px!important;
+}
+.captchaLabel {
+  font-family: 'Trebuchet MS', sans-serif;
+  font-weight: 700;
+  color: #4a4a4a;
+  padding: 10px 27px 0 10px;
+  position: relative;
+  display: block;
+  float: left;
+
+}
+.captchaLabel::before{
+	margin-top: 555px;
+}
+.captchaLabel:after {
+  font-family: "SocialFoundicons";
+  position: absolute;
+  content: '\f000';
+  max-width: 0;
+  overflow: hidden;
+  font-size: 30px;
+  top: -7.1px;
+  left: -24px;
+  color: #039F53;
+  -webkit-transition: all 0.7s;
+  -moz-transition: all 0.7s;
+  -ms-transition: all 0.7s;
+  transition: all 0.7s;
+}
+.captchaBox {
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  outline: none;
+  border: 2px solid #b9b9b9;
+  border-radius: 2px;
+	margin-top: 4px;
+}
+.boxHover {
+  background-color: #fff;
+}
+.boxHover:hover {
+  cursor: pointer;
+  border: 2px solid #1E88E5;
+}
+.scaleDown {
+  -webkit-transition: all 0.5s ease;
+  -moz-transition: all 0.5s ease;
+  -ms-transition: all 0.5s ease;
+  transition: all 0.5s ease;
+  transform: scale(0.2,0.2);
+}
+.circle {
+  border-top: 2px solid #1E88E5;
+  border-right-color: transparent;
+  border-bottom: 2px solid #1E88E5;
+  border-left-color: transparent;
+  border-radius: 12px;
+  background-color: #fafafa;
+}
+.scaleUp {
+  -webkit-transition: all 0.6s ease;
+  -moz-transition: all 0.6s ease;
+  -ms-transition: all 0.6s ease;
+  transition: all .6s ease;
+  transform: scale(1,1);
+}
+.rotation {
+  -webkit-transition: all 2s ease-out;
+  -moz-transition: all 2s ease-out;
+  -ms-transition: all 2s ease-out;
+  transition: all 2s ease-out;
+  transform: rotate(1080deg);
+}
+.fadeOut {
+  -webkit-transition: all 0.6s ease;
+  -moz-transition: all 0.6s ease;
+  -ms-transition: all 0.6s ease;
+  transition: all .6s ease;
+  border-color: transparent;
+}
+.captchaError {
+  box-shadow: 0 0 1px 1px #E53935;
+}
+.captchaSolved {
+  box-shadow: 0 0 1px 1px #006600;
+}

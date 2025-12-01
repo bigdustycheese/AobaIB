@@ -1,0 +1,133 @@
+/* Custom Stylesheet */
+/**
+ * Use this file to override Materialize files so you can update
+ * the core Materialize files in the future
+ *
+ * Made By MaterializeCSS.com
+ */
+body {
+    background-color: #ffe;
+}
+
+.icon-block {
+    padding: 0 15px;
+}
+.icon-block .material-icons {
+    font-size: inherit;
+}
+table.striped > tbody > tr:nth-child(odd) {
+    /*background-color: #a7ffeb;*/
+}
+
+.card > .collection {
+    border: none;
+}
+
+.column {
+    float: left;
+    width: 20em;
+}
+
+.board-banner{
+	padding-left: 20px;
+	padding-top: 10px;
+	padding-right: 50px;
+}
+
+.board-list{
+	margin-top: 20px;
+	padding-right: 30px;
+}
+.board-section:nth-child(odd) {
+    float: left;
+    padding-right: 20px;
+    width: max-content;
+}
+.board-section:nth-child(even) {
+    float: right;
+    padding-right: 20px;
+    width: max-content;
+}
+.board-section:nth-child(odd):first-child {
+	/* 	current matching section: "Interests" */
+    padding-left: 20px;
+}
+.board-section:nth-child(even):last-child {
+    /*current matching section: "Meta"*/
+/*     color: lime!important; */
+    float: unset;
+	margin-left: 500px !important;
+}
+
+.card .card-image img {
+    max-height: 232px;
+    display: block;
+    border-radius: 2px 2px 0 0;
+    position: relative;
+    left: 0;
+    right: 0;
+    top: 0;
+    bottom: 0;
+    width: 100%;
+
+}
+
+.card .card-content p {
+    display: -webkit-box!important;
+    -webkit-line-clamp: 4!important;
+    -webkit-box-orient: vertical!important;
+    overflow: hidden!important;
+}
+
+.nocomment {
+    /*user provided no comment, pad the panel a bit so all the panels look about the same size*/
+	padding-bottom: 87px!important;
+}
+
+/*.recentCardHolder{
+  display:flex;
+  align-items:flex-start;
+  justify-content:flex-start;
+  flex-flow: row wrap;
+  width:100%;
+}
+
+.recentCardHolder div{
+  width:calc(100% / 2);
+  padding:0;
+  margin:0;
+}
+
+@media only screen and (max-width: 600px){
+  .recentCardHolder div{
+   width:100%;
+  }
+}
+*/
+
+.marooncolor {
+    background-color: #800!important;
+}
+
+.greencolor {
+    background-color: #0f4a2f!important;
+}
+
+.boardlink {
+    text-align: center;
+/* 	font-size: calc(0.8vw + 0.8vh); */
+}
+.boardlistitem:hover{
+    background: rgba(0,   0,   0, 0.14)!important;
+}
+
+.modal-content img {
+    display: block;
+    margin: 0 auto;
+}
+
+.brand-logo img {
+    height: 55px;
+    padding: 0;
+    width: auto;
+}
