@@ -473,7 +473,11 @@ class Common {
         $type = "jpg";
 
         try {
-            switch ($size[2]) {
+            if (!is_array($size) || !isset($size[2])) {
+            return -2;
+        }
+
+        switch ($size[2]) {
                 case 1:
                     if (!function_exists("ImageCreateFromGIF")) return;
                     $im_in = ImageCreateFromGIF($fname);
