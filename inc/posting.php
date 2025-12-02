@@ -87,78 +87,254 @@ class Posting
      * @see
      * @since
      */
-   function deletePost($board, $postno, $password, $onlyimgdel = 0, $withoutpassword = false)
-{
+    function deletePost($board, $postno, $password, $onlyimgdel = 0, $withoutpassword = false)
+    {
 
-    if (is_numeric($postno)) {
+        if (is_numeric($postno)) {
 
-        $board = $this->conn->real_escape_string($board);
+            $board = $this->conn->real_escape_string($board);
 
-        if (!$this->mitsuba->common->isBoard($board)) {
+            if (!$this->mitsuba->common->isBoard($board)) {
 
-            return -16;
-
-        }
-
-        $bdata = $this->mitsuba->common->getBoardData($board);
-
-        $result = $this->conn->query("SELECT * FROM posts WHERE id=" . $postno . " AND board='" . $board . "' AND deleted=0");
-
-        if ($result->num_rows == 1) {
-
-            $config = $this->mitsuba->config;
-
-            $postdata = $result->fetch_assoc();
-
-            if (!$withoutpassword) {
-
-                if (time() <= ($postdata['date'] + $bdata['time_to_delete'])) {
-
-                    return -4;
-
-                }
-
-                if (md5($password) != $postdata['password']) {
-
-                    return -1;
-
-                }
+                return -16;
 
             }
 
-            if ($onlyimgdel == 1) {
+            $bdata = $this->mitsuba->common->getBoardData($board);
 
-                if ((!empty($postdata['filename'])) && ($postdata['filename'] != "deleted")) {
+            $result = $this->conn->query("SELECT * FROM posts WHERE id=" . $postno . " AND board='" . $board . "' AND deleted=0");
 
-                    $filename = $postdata['filename'];
+            if ($result->num_rows == 1) {
 
-                    if (substr($filename, 0, 4) == "url:") {
+                $config = $this->mitsuba->config;
 
-                        return 1;
+                $postdata = $result->fetch_assoc();
+
+                if (!$withoutpassword) {
+
+                    if (time() <= ($postdata['date'] + $bdata['time_to_delete'])) {
+
+                        return -4;
 
                     }
 
-                    if (substr($filename, 0, 8) == "spoiler:") {
+                    if (md5($password) != $postdata['password']) {
 
-                        $filename = substr($filename, 8);
+                        return -1;
 
                     }
 
-                    if ((substr($filename, 0, 6) != "embed:") && (substr($filename, 0, 4) != "url:") && ($filename != "deleted")) {
-                        $src_path = "../" . $board . "/src/" . $filename;
-                        $thumb_path = "../" . $board . "/src/thumb/" . $filename;
-                        
-                        if (file_exists($src_path)) {
-                            unlink($src_path);
+                }
+
+                if ($onlyimgdel == 1) {
+
+                    if ((!empty($postdata['filename'])) && ($postdata['filename'] != "deleted")) {
+
+                        $filename = $postdata['filename'];
+
+                        if (substr($filename, 0, 4) == "url:") {
+
+                            return 1;
+
                         }
-                        if (file_exists($thumb_path)) {
-                            unlink($thumb_path);
+
+                        if (substr($filename, 0, 8) == "spoiler:") {
+
+                            $filename = substr($filename, 8);
+
                         }
+
+                        if ((substr($filename, 0, 6) != "embed:") && (substr($filename, 0, 4) != "url:") && ($filename != "deleted")) {
+
+                            unlink("./" . $board . "/src/" . $filename);
+
+                            unlink("./" . $board . "/src/thumb/" . $filename);
+
+                        }
+
+                        $this->conn->query("UPDATE posts SET filename='deleted', mimetype='', filehash='' WHERE id=" . $postno . " AND board='" . $board . "';");
+
+                        if ($postdata['resto'] != 0) {
+
+                            $this->mitsuba->caching->generateView($board, $postdata['resto']);
+
+                            if ($config['caching_mode'] == 1) {
+
+                                $this->mitsuba->caching->forceGetThread($board, $postdata['resto']);
+
+                            }
+
+                            $this->mitsuba->caching->generateView($board);
+
+                        } else {
+
+                            $this->mitsuba->caching->generateView($board, $postno);
+
+                            if ($config['caching_mode'] == 1) {
+
+                                $this->mitsuba->caching->forceGetThread($board, $postno);
+
+                            }
+
+                            $this->mitsuba->caching->generateView($board);
+
+                        }
+
+                        if ($bdata['catalog'] == 1) {
+
+                            $this->mitsuba->caching->generateCatalog($board);
+
+                        }
+
+                        $e = array("postno" => $postno, "onlyimgdel" => $onlyimgdel);
+
+                        $this->mitsuba->emitEvent("posting.delete", $e);
+
+                        $this->mitsuba->caching->generateFrontpage("onPostDeleted");
+
+                        return 1; //done-image
+
+
+
+                    } else {
+
+                        return -3;
+
                     }
 
-                    $this->conn->query("UPDATE posts SET filename='deleted', mimetype='', filehash='' WHERE id=" . $postno . " AND board='" . $board . "';");
+                } else {
 
-                    if ($postdata['resto'] != 0) {
+                    if ($postdata['resto'] == 0) //we'll have to delete whole thread
+
+                    {
+
+                        $files = $this->conn->query("SELECT * FROM posts WHERE filename != '' AND resto=" . $postdata['id'] . " AND board='" . $board . "'");
+
+                        while ($file = $files->fetch_assoc()) {
+
+                            $filename = $file['filename'];
+
+                            if (substr($filename, 0, 4) == "url:") {
+
+                                $filename = "deleted";
+
+                            }
+
+                            if (substr($filename, 0, 8) == "spoiler:") {
+
+                                $filename = substr($filename, 8);
+
+                            }
+
+                            if ((substr($filename, 0, 6) != "embed:") && ($filename != "deleted")) {
+
+                                unlink("./" . $board . "/src/" . $filename);
+
+                                if (file_exists("./" . $board . "/src/thumb/" . $filename)) {
+
+                                    unlink("./" . $board . "/src/thumb/" . $filename);
+
+                                }
+
+                            }
+
+                        }
+
+                        if ((!empty($postdata['filename'])) && ($postdata['filename'] != "deleted")) {
+
+                            $filename = $postdata['filename'];
+
+                            if (substr($filename, 0, 8) == "spoiler:") {
+
+                                $filename = substr($filename, 8);
+
+                            }
+
+                            if ((substr($filename, 0, 6) != "embed:") && ($filename != "deleted")) {
+
+                                unlink("./" . $board . "/src/" . $filename);
+
+                                if (file_exists("./" . $board . "/src/thumb/" . $filename)) {
+
+                                    unlink("./" . $board . "/src/thumb/" . $filename);
+
+                                }
+
+                            }
+
+                        }
+
+                        $this->conn->query("UPDATE posts SET deleted=" . time() . " WHERE resto=" . $postno . " AND board='" . $board . "';");
+
+                        $this->conn->query("UPDATE posts SET deleted=" . time() . " WHERE id=" . $postno . " AND board='" . $board . "';");
+
+                        if ($bdata['hidden'] == 0) {
+
+                            if (file_exists("./" . $board . "/res/" . $postno . ".json")) {
+
+                                unlink("./" . $board . "/res/" . $postno . ".json");
+
+                            }
+
+                            if (file_exists("./" . $board . "/res/" . $postno . "_index.html")) {
+
+                                unlink("./" . $board . "/res/" . $postno . "_index.html");
+
+                            }
+
+                            unlink("./" . $board . "/res/" . $postno . ".html");
+
+                        }
+
+                        //$this->mitsuba->caching->generateView($board, $postno);
+
+                        if ($bdata['catalog'] == 1) {
+
+                            $this->mitsuba->caching->generateCatalog($board);
+
+                        }
+
+                        $this->mitsuba->caching->generateView($board);
+
+                        $e = array("postno" => $postno, "onlyimgdel" => $onlyimgdel);
+
+                        $this->mitsuba->emitEvent("posting.delete", $e);
+
+                        $this->mitsuba->caching->generateFrontpage("onPostDeleted");
+
+                        return 2; //done post
+
+
+
+                    } else {
+
+                        if ((!empty($postdata['filename'])) && ($postdata['filename'] != "deleted")) {
+
+                            $filename = $postdata['filename'];
+
+                            if (substr($filename, 0, 4) == "url:") {
+
+                                $filename = "deleted";
+
+                            }
+
+                            if (substr($filename, 0, 8) == "spoiler:") {
+
+                                $filename = substr($filename, 8);
+
+                            }
+
+                            if ((substr($filename, 0, 6) != "embed:") && ($filename != "deleted")) {
+
+                                unlink("./" . $board . "/src/" . $filename);
+
+                                unlink("./" . $board . "/src/thumb/" . $filename);
+
+                            }
+
+                        }
+
+                        $this->conn->query("UPDATE posts SET deleted=" . time() . " WHERE id=" . $postno . " AND board='" . $board . "';");
 
                         $this->mitsuba->caching->generateView($board, $postdata['resto']);
 
@@ -168,206 +344,35 @@ class Posting
 
                         }
 
-                        $this->mitsuba->caching->generateView($board);
+                        if ($bdata['catalog'] == 1) {
 
-                    } else {
-
-                        $this->mitsuba->caching->generateView($board, $postno);
-
-                        if ($config['caching_mode'] == 1) {
-
-                            $this->mitsuba->caching->forceGetThread($board, $postno);
+                            $this->mitsuba->caching->generateCatalog($board);
 
                         }
 
                         $this->mitsuba->caching->generateView($board);
 
+                        $e = array("postno" => $postno, "onlyimgdel" => $onlyimgdel);
+
+                        $this->mitsuba->emitEvent("posting.delete", $e);
+
+                        $this->mitsuba->caching->generateFrontpage("onPostDeleted");
+
+                        return 2;
+
                     }
 
-                    if ($bdata['catalog'] == 1) {
+                }
 
-                        $this->mitsuba->caching->generateCatalog($board);
+                if ($config['enable_api'] == 1) {
 
-                    }
-
-                    $e = array("postno" => $postno, "onlyimgdel" => $onlyimgdel);
-
-                    $this->mitsuba->emitEvent("posting.delete", $e);
-
-                    $this->mitsuba->caching->generateFrontpage("onPostDeleted");
-
-                    return 1;
-
-                } else {
-
-                    return -3;
+                    $this->mitsuba->caching->serializeBoard($_GET['b']);
 
                 }
 
             } else {
 
-                if ($postdata['resto'] == 0)
-                {
-
-                    $files = $this->conn->query("SELECT * FROM posts WHERE filename != '' AND resto=" . $postdata['id'] . " AND board='" . $board . "'");
-
-                    while ($file = $files->fetch_assoc()) {
-
-                        $filename = $file['filename'];
-
-                        if (substr($filename, 0, 4) == "url:") {
-
-                            $filename = "deleted";
-
-                        }
-
-                        if (substr($filename, 0, 8) == "spoiler:") {
-
-                            $filename = substr($filename, 8);
-
-                        }
-
-                        if ((substr($filename, 0, 6) != "embed:") && ($filename != "deleted")) {
-                            $src_path = "../" . $board . "/src/" . $filename;
-                            
-                            if (file_exists($src_path)) {
-                                unlink($src_path);
-                            }
-                            
-                            $thumb_path = "../" . $board . "/src/thumb/" . $filename;
-                            if (file_exists($thumb_path)) {
-                                unlink($thumb_path);
-                            }
-                        }
-
-                    }
-
-                    if ((!empty($postdata['filename'])) && ($postdata['filename'] != "deleted")) {
-
-                        $filename = $postdata['filename'];
-
-                        if (substr($filename, 0, 8) == "spoiler:") {
-
-                            $filename = substr($filename, 8);
-
-                        }
-
-                        if ((substr($filename, 0, 6) != "embed:") && ($filename != "deleted")) {
-                            $src_path = "../" . $board . "/src/" . $filename;
-                            
-                            if (file_exists($src_path)) {
-                                unlink($src_path);
-                            }
-                            
-                            $thumb_path = "../" . $board . "/src/thumb/" . $filename;
-                            if (file_exists($thumb_path)) {
-                                unlink($thumb_path);
-                            }
-                        }
-
-                    }
-
-                    $this->conn->query("UPDATE posts SET deleted=" . time() . " WHERE resto=" . $postno . " AND board='" . $board . "';");
-
-                    $this->conn->query("UPDATE posts SET deleted=" . time() . " WHERE id=" . $postno . " AND board='" . $board . "';");
-
-                    if ($bdata['hidden'] == 0) {
-                        $res_json = "./" . $board . "/res/" . $postno . ".json";
-                        $res_index = "./" . $board . "/res/" . $postno . "_index.html";
-                        $res_html = "./" . $board . "/res/" . $postno . ".html";
-
-                        if (file_exists($res_json)) {
-                            unlink($res_json);
-                        }
-                        if (file_exists($res_index)) {
-                            unlink($res_index);
-                        }
-                        if (file_exists($res_html)) {
-                            unlink($res_html);
-                        }
-                    }
-
-                    if ($bdata['catalog'] == 1) {
-
-                        $this->mitsuba->caching->generateCatalog($board);
-
-                    }
-
-                    $this->mitsuba->caching->generateView($board);
-
-                    $e = array("postno" => $postno, "onlyimgdel" => $onlyimgdel);
-
-                    $this->mitsuba->emitEvent("posting.delete", $e);
-
-                    $this->mitsuba->caching->generateFrontpage("onPostDeleted");
-
-                    return 2;
-
-                } else {
-
-                    if ((!empty($postdata['filename'])) && ($postdata['filename'] != "deleted")) {
-
-                        $filename = $postdata['filename'];
-
-                        if (substr($filename, 0, 4) == "url:") {
-
-                            $filename = "deleted";
-
-                        }
-
-                        if (substr($filename, 0, 8) == "spoiler:") {
-
-                            $filename = substr($filename, 8);
-
-                        }
-
-                        if ((substr($filename, 0, 6) != "embed:") && ($filename != "deleted")) {
-                            $src_path = "../" . $board . "/src/" . $filename;
-                            $thumb_path = "../" . $board . "/src/thumb/" . $filename;
-
-                            if (file_exists($src_path)) {
-                                unlink($src_path);
-                            }
-                            if (file_exists($thumb_path)) {
-                                unlink($thumb_path);
-                            }
-                        }
-
-                    }
-
-                    $this->conn->query("UPDATE posts SET deleted=" . time() . " WHERE id=" . $postno . " AND board='" . $board . "';");
-
-                    $this->mitsuba->caching->generateView($board, $postdata['resto']);
-
-                    if ($config['caching_mode'] == 1) {
-
-                        $this->mitsuba->caching->forceGetThread($board, $postdata['resto']);
-
-                    }
-
-                    if ($bdata['catalog'] == 1) {
-
-                        $this->mitsuba->caching->generateCatalog($board);
-
-                    }
-
-                    $this->mitsuba->caching->generateView($board);
-
-                    $e = array("postno" => $postno, "onlyimgdel" => $onlyimgdel);
-
-                    $this->mitsuba->emitEvent("posting.delete", $e);
-
-                    $this->mitsuba->caching->generateFrontpage("onPostDeleted");
-
-                    return 2;
-
-                }
-
-            }
-
-            if ($config['enable_api'] == 1) {
-
-                $this->mitsuba->caching->serializeBoard($_GET['b']);
+                return -2;
 
             }
 
@@ -377,13 +382,7 @@ class Posting
 
         }
 
-    } else {
-
-        return -2;
-
     }
-
-}
 
     /**
      * addPost
@@ -526,8 +525,10 @@ class Posting
 
         }
 
-        if ((substr($filename ?? '', 0, 4) == "url:")) {
-    $fname2 = "url";
+        if (substr((string)$filename, 0, 4) === "url:") {
+
+            $fname2 = "url";
+
         }
 
         $thread = "";
@@ -682,7 +683,11 @@ class Posting
 
                 $d = getimagesize("./" . $board . "/src/" . $filename);
 
-                $isize = $d[0] . "x" . $d[1];
+                                if (is_array($d) && isset($d[0], $d[1])) {
+                    $isize = $d[0] . "x" . $d[1];
+                } else {
+                    $isize = "unknown"; // o ""
+                }
 
                 $osize = filesize("./" . $board . "/src/" . $filename);
 
@@ -736,99 +741,7 @@ class Posting
 
         }
 
-        $email = $email ?? '';
-        $subject = $subject ?? '';
-        $comment = $comment ?? '';
-        $origFilename = $origFilename ?? '';
-        $filename = $filename ?? '';
-        $capText = $capText ?? '';
-        $capStyle = $capStyle ?? '';
-        $capIcon = $capIcon ?? '';
-        $posterID = $posterID ?? '';
-        $trip = $trip ?? '';
-        $name = $name ?? '';
-
-        $md5 = $md5 ?? ''; 
-        $mimetype = $mimetype ?? ''; 
-
-        $resto = $resto ?? 0;
-        $lastbumped = $lastbumped ?? 0;
-        $osize = $osize ?? 0;
-        $thumbW = $thumbW ?? 0;
-        $thumbH = $thumbH ?? 0;
-        $sticky = $sticky ?? 0;
-        $locked = $locked ?? 0;
-        $raw = $raw ?? 0;
-
-        $fsize = $fsize ?? ''; 
-        $isize = $isize ?? ''; 
-
-        $customFieldsNames = $customFieldsNames ?? '';
-        $customFieldsValues = $customFieldsValues ?? '';
-
-        $strip = substr($strip, 0, 50);
-
-        $this->conn->query("INSERT INTO posts (board, `date`, name, trip, strip, poster_id, email, subject, comment, password, orig_filename, filename, resto, ip, lastbumped, filehash, orig_filesize, filesize, imagesize, mimetype, t_w, t_h, sticky, sage, locked, raw, capcode_text, capcode_style, capcode_icon, deleted" . $customFieldsNames . ")" . 
-
-        "VALUES ('" . $this->conn->real_escape_string($board) . "', " . 
-
-        time() . ", '" . 
-
-        $this->conn->real_escape_string($name) . "', '" . 
-
-        $this->conn->real_escape_string($trip) . "', '" . 
-
-        $this->conn->real_escape_string($strip) . "', '" . 
-
-        $this->conn->real_escape_string($posterID) . "', '" . 
-
-        $this->conn->real_escape_string($this->mitsuba->common->processString($email)) . "', '" . 
-
-        $this->conn->real_escape_string($this->mitsuba->common->processString($subject)) . "', '" . 
-
-        $this->conn->real_escape_string($this->mitsuba->common->preprocessComment($comment)) . "', '" . 
-
-        md5($password) . "', '" . 
-
-        $this->conn->real_escape_string($this->mitsuba->common->processString($origFilename)) . "', '" . 
-
-        $this->conn->real_escape_string($filename) . "', " . 
-
-        $resto . ", '" . 
-
-        $this->conn->real_escape_string($this->mitsuba->common->getIP()) . "', " . 
-
-        $lastbumped . ", '" . 
-
-        $this->conn->real_escape_string($md5) . "', " . 
-
-        $osize . ", '" . 
-
-        $this->conn->real_escape_string($fsize) . "', '" . 
-
-        $this->conn->real_escape_string($isize) . "', '" . 
-
-        $this->conn->real_escape_string($mimetype) . "', " . 
-
-        $thumbW . ", " . 
-
-        $thumbH . ", " . 
-
-        $sticky . ", 0, " . 
-
-        $locked . ", " . 
-
-        $raw . ", '" . 
-
-        $this->conn->real_escape_string($capText) . "', '" . 
-
-        $this->conn->real_escape_string($capStyle) . "', '" . 
-
-        $this->conn->real_escape_string($capIcon) . "', 0" . 
-
-        (empty($customFieldsValues) ? "" : "," . $customFieldsValues) . 
-
-        ")");
+        $this->conn->query("INSERT INTO posts (board, `date`, name, trip, strip, poster_id, email, subject, comment, password, orig_filename, filename, resto, ip, lastbumped, filehash, orig_filesize, filesize, imagesize, mimetype, t_w, t_h, sticky, sage, locked, raw, capcode_text, capcode_style, capcode_icon, deleted" . $customFieldsNames . ")" . "VALUES ('" . $board . "', " . time() . ", '" . $name . "', '" . $trip . "', '" . $strip . "', '" . $this->conn->real_escape_string($posterID) . "', '" . $this->mitsuba->common->processString($email) . "', '" . $this->mitsuba->common->processString($subject) . "', '" . $this->mitsuba->common->preprocessComment($comment) . "', '" . md5($password) . "', '" . $this->mitsuba->common->processString($origFilename) . "', '" . $filename . "', " . $resto . ", '" . $this->mitsuba->common->getIP() . "', " . $lastbumped . ", '" . $md5 . "', " . $osize . ", '" . $fsize . "', '" . $isize . "', '" . $mimetype . "', " . $thumbW . ", " . $thumbH . ", " . $sticky . ", 0, " . $locked . ", " . $raw . ", '" . $capText . "', '" . $capStyle . "', '" . $capIcon . "', 0" . $customFieldsValues . ")");
 
         $id = $this->conn->insert_id;
 

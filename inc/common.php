@@ -752,8 +752,7 @@ class Common {
 
         } else {
 
-            trigger_error('Can not open /dev/urandom.');
-
+            $seed = random_bytes(32);
         }
 
         // convert from binary to string
