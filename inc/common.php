@@ -420,9 +420,10 @@ class Common {
      * @since
      */
     function thumb($board, $filename, $ext, $s = 250) {
-      $filename = $filename;
-      $extension = $this->getGraphicsExtension();
-      if ($ext == ".webm") {
+    $filename = $filename;
+    $extension = $this->getGraphicsExtension();
+    
+    if ($ext == ".webm" || $ext == ".mp4") {
         $fname = './'.$board.'/src/'.$filename.$ext;
         $thumbDirectory = './'.$board.'/src/thumb/';
 
@@ -431,150 +432,129 @@ class Common {
         $movie = new \webm($fname);
 
         if ($movie->thumbnail($thumbDirectory.$filename.'.gif', $s, $s))
-				return array("width" => $s, "height" => $s);
-      }
-
-        if ($ext == ".mp4") {
-          $fname = './'.$board.'/src/'.$filename.$ext;
-          $thumbDirectory = './'.$board.'/src/thumb/';
-
-          require_once dirname(__FILE__) . '/webm.class.php';
-
-          $movie = new \webm($fname);
-
-          if ($movie->thumbnail($thumbDirectory.$filename.'.gif', $s, $s))
-  				return array("width" => $s, "height" => $s);
-        }
-
-        if (!(strpos($filename, "url:") === false)) {
-            //dont make thumbnails of links
-            return 0;
-        }
-
-        if (($extension == "imagick") && !($ext == ".webm") && !($ext == ".mp4")) {
-            $fname = './' . $board . '/src/' . $filename;
-            $thumbDirectory = './' . $board . '/src/thumb/'; //thumbnail directory
-            $width = $s; //output width
-            $height = $s; //output height
-            try {
-              $img = new \Imagick($fname.$ext);
-              $img->setImageColorspace(13);
-              $img = $img->coalesceImages();
-
-              foreach ($img as $frame) {
-                  $frame->thumbnailImage($width, $height, true);
-              }
-
-              $img->writeImages($thumbDirectory . $filename . $ext, true);
-
-              $ig = $img->getImageGeometry();
-              $img->destroy();
-            } catch (\Exception $e) {
-
-            }
-
-            return $ig;
-        } elseif ($extension == "gd") {
-            if (!function_exists("ImageCreate") || !function_exists("ImageCreateFromJPEG")) return;
-            $fname = './' . $board . '/src/' . $filename.$ext;
-            $thumbDirectory = './' . $board . '/src/thumb/'; //thumbnail directory
-            $width = $s; //output width
-            $height = $s; //output height
-
-            // width, height, and type are aquired
-            $size = GetImageSize($fname);
-            $type = "jpg";
-
-            try {
-                switch ($size[2]) {
-                    case 1:
-                        if (!function_exists("ImageCreateFromGIF")) return;
-                        $im_in = ImageCreateFromGIF($fname);
-                        $type = "gif";
-                        if (!$im_in) {
-                            return -1;
-                        }
-
-                        break;
-
-                    case 2:
-                        $im_in = ImageCreateFromJPEG($fname);
-                        $type = "jpg";
-                        if (!$im_in) {
-                            return -1;
-                        }
-
-                        break;
-
-                    case 3:
-                        if (!function_exists("ImageCreateFromPNG")) return;
-                        $im_in = ImageCreateFromPNG($fname);
-                        $type = "png";
-                        if (!$im_in) {
-                            return -1;
-                        }
-
-                        break;
-
-                    default:
-                        return -2;
-                }
-            }catch(Exception $e) {
-                    return -1;
-            }
-                // Resizing
-                if ($size[0] > $width || $size[1] > $height) {
-                    $key_w = $width / $size[0];
-                    $key_h = $height / $size[1];
-                    ($key_w < $key_h) ? $keys = $key_w : $keys = $key_h;
-                    $out_w = ceil($size[0] * $keys) + 1;
-                    $out_h = ceil($size[1] * $keys) + 1;
-                } else {
-                    $out_w = $size[0];
-                    $out_h = $size[1];
-                }
-
-                // the thumbnail is created
-                if (function_exists("ImageCreateTrueColor")) {
-                    $im_out = ImageCreateTrueColor($out_w, $out_h);
-                } else {
-                    $im_out = ImageCreate($out_w, $out_h);
-                }
-
-                //adds transparency [devnote: this took me fucking 3-4 days to figure out how to do it... why isn't there better documentation?]
-                imagealphablending($im_out, false);
-                imagesavealpha($im_out, true);
-                $trans_layer_overlay = imagecolorallocatealpha($im_in, 220, 220, 220, 127);
-                imagefill($im_out, 0, 0, $trans_layer_overlay);
-
-                // copy resized original
-                imagecopyresampled($im_out, $im_in, 0, 0, 0, 0, $out_w, $out_h, $size[0], $size[1]);
-
-                // thumbnail saved
-
-                switch ($type) {
-                    case "jpg":
-                        ImageJPEG($im_out, $thumbDirectory . $filename . $ext, 70);
-                    break;
-
-                    case "png":
-                        ImagePNG($im_out, $thumbDirectory . $filename . $ext, 9);
-                    break;
-
-                    case "gif":
-                        ImageGIF($im_out, $thumbDirectory . $filename . $ext);
-                    break;
-                }
-
-                chmod($thumbDirectory . $filename, 0666);
-
-                // created image is destroyed
-
-                ImageDestroy($im_in);
-                ImageDestroy($im_out);
-                return array("width" => $out_w, "height" => $out_h);
-        }
+            return array("width" => $s, "height" => $s);
     }
+
+    if (str_contains($filename ?? '', "url:")) {
+        return 0;
+    }
+
+    if (($extension == "imagick") && !($ext == ".webm") && !($ext == ".mp4")) {
+        $fname = './' . $board . '/src/' . $filename;
+        $thumbDirectory = './' . $board . '/src/thumb/';
+        $width = $s;
+        $height = $s;
+        try {
+            $img = new \Imagick($fname.$ext);
+            $img->setImageColorspace(13);
+            $img = $img->coalesceImages();
+
+            foreach ($img as $frame) {
+                $frame->thumbnailImage($width, $height, true);
+            }
+
+            $img->writeImages($thumbDirectory . $filename . $ext, true);
+
+            $ig = $img->getImageGeometry();
+            $img->destroy();
+        } catch (\Exception $e) {
+
+        }
+
+        return $ig;
+    } elseif ($extension == "gd") {
+        if (!function_exists("ImageCreate") || !function_exists("ImageCreateFromJPEG")) return;
+        $fname = './' . $board . '/src/' . $filename.$ext;
+        $thumbDirectory = './' . $board . '/src/thumb/';
+        $width = $s;
+        $height = $s;
+
+        $size = getimagesize($fname);
+        $type = "jpg";
+
+        try {
+            switch ($size[2]) {
+                case 1:
+                    if (!function_exists("ImageCreateFromGIF")) return;
+                    $im_in = ImageCreateFromGIF($fname);
+                    $type = "gif";
+                    if (!$im_in) {
+                        return -1;
+                    }
+
+                    break;
+
+                case 2:
+                    $im_in = ImageCreateFromJPEG($fname);
+                    $type = "jpg";
+                    if (!$im_in) {
+                        return -1;
+                    }
+
+                    break;
+
+                case 3:
+                    if (!function_exists("ImageCreateFromPNG")) return;
+                    $im_in = ImageCreateFromPNG($fname);
+                    $type = "png";
+                    if (!$im_in) {
+                        return -1;
+                    }
+
+                    break;
+
+                default:
+                    return -2;
+            }
+        }catch(Exception $e) {
+            return -1;
+        }
+
+        if ($size[0] > $width || $size[1] > $height) {
+            $key_w = $width / $size[0];
+            $key_h = $height / $size[1];
+            ($key_w < $key_h) ? $keys = $key_w : $keys = $key_h;
+            $out_w = ceil($size[0] * $keys) + 1;
+            $out_h = ceil($size[1] * $keys) + 1;
+        } else {
+            $out_w = $size[0];
+            $out_h = $size[1];
+        }
+
+        if (function_exists("ImageCreateTrueColor")) {
+            $im_out = ImageCreateTrueColor($out_w, $out_h);
+        } else {
+            $im_out = ImageCreate($out_w, $out_h);
+        }
+
+        imagealphablending($im_out, false);
+        imagesavealpha($im_out, true);
+        $trans_layer_overlay = imagecolorallocatealpha($im_out, 220, 220, 220, 127);
+        imagefill($im_out, 0, 0, $trans_layer_overlay);
+
+        imagecopyresampled($im_out, $im_in, 0, 0, 0, 0, $out_w, $out_h, $size[0], $size[1]);
+
+        switch ($type) {
+            case "jpg":
+                ImageJPEG($im_out, $thumbDirectory . $filename . $ext, 70);
+            break;
+
+            case "png":
+                ImagePNG($im_out, $thumbDirectory . $filename . $ext, 9);
+            break;
+
+            case "gif":
+                ImageGIF($im_out, $thumbDirectory . $filename . $ext);
+            break;
+        }
+
+        chmod($thumbDirectory . $filename . $ext, 0666); 
+
+        ImageDestroy($im_in);
+        ImageDestroy($im_out);
+        return array("width" => $out_w, "height" => $out_h);
+    }
+}
 
     /**
      * delTree

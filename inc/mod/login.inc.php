@@ -20,7 +20,10 @@ if ((!empty($_POST['username'])) && (!empty($_POST['password']))) {
         $password = hash("sha512", $_POST['password'].$data['salt']);
         if ($data['password'] == $password) {
 
-            $group = $conn->query("SELECT * FROM groups WHERE id=".$data['group']);
+            $stmt = $conn->prepare("SELECT * FROM `groups` WHERE id = ?");
+            $stmt->bind_param("i", $data['group']);
+            $stmt->execute();
+            $group = $stmt->get_result();
 
             $gdata = $group->fetch_assoc();
 

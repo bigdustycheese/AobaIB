@@ -4,7 +4,7 @@
             <meta http-equiv="Content-Type" content="text/html; charset=UTF-8"/>
             <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1.0"/>
 			<meta charset="UTF-8">
-			<title>314chan | Forbidden</title>
+			<title>AobaIB | Forbidden</title>
             <link href="/css/MIcons.css" rel="stylesheet">
             <link href="/css/materialize.css" type="text/css" rel="stylesheet" media="screen,projection"/>
             <link href="/css/style.css" type="text/css" rel="stylesheet" media="screen,projection"/>
@@ -17,18 +17,18 @@
 		<body>
 			<div class="navbar-fixed">
 				<nav class="marooncolor" role="navigation">
-					<div class="nav-wrapper container"><a id="logo-container" href="/" class="brand-logo">314chan</a>
+					<div class="nav-wrapper container"><a id="logo-container" href="/" class="brand-logo">AobaIB</a>
 						<ul class="right hide-on-med-and-down">
 							<li><a href="rules.html">Rules</a></li>
 							<li><a href="faq.html">FAQ</a></li>
 							<li><a href="news.html">News</a></li>
-							<li><a href="https://irc.314chan.org">IRC</a></li>
+							<li><a href="#">IRC</a></li>
 						</ul>
 						<ul id="nav-mobile" class="side-nav">
 							<li><a href="rules.html">Rules</a></li>
 							<li><a href="faq.html">FAQ</a></li>
 							<li><a href="news.html">News</a></li>
-							<li><a href="https://irc.314chan.org">IRC</a></li>
+							<li><a href="#">IRC</a></li>
 						</ul>
 						<a href="#" data-activates="nav-mobile" class="button-collapse"><i class="material-icons">menu</i></a>
 					</div>

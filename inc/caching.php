@@ -1,4 +1,5 @@
 <?php
+namespace Mitsuba;
 use Captcha as Captcha;
 /*
 
@@ -36,8 +37,6 @@ use Captcha as Captcha;
 
 */
 
-namespace Mitsuba;
-
 /**
  * Caching
  * Insert description here
@@ -61,6 +60,10 @@ class Caching
 
 	private $mitsuba;
 
+	protected $_parser;
+	protected $_replace_array;
+  
+
 	/**
 	 * __construct
 	 * Insert description here
@@ -83,8 +86,7 @@ class Caching
 		$this->mitsuba = $mitsuba;
 
 		$this->config = $this->mitsuba->config;
-
-	}
+}
 
 	/**
 	 * generateBoardLinks
@@ -2548,87 +2550,91 @@ class Caching
 	 */
 	function forceGetThread($board, $threadno){
 
-		global $lang;
+    global $lang;
 
-		if ($boarddata = $this->mitsuba->common->isBoard($board)) {
+    if ($boarddata = $this->mitsuba->common->isBoard($board)) {
 
-			$result = $this->conn->query("SELECT * FROM posts WHERE id=" . $threadno . " AND board='" . $board . "' AND deleted=0");
+        $stmt_posts = $this->conn->prepare("SELECT * FROM posts WHERE id = ? AND board = ? AND deleted = 0");
+        $stmt_posts->bind_param("is", $threadno, $board);
+        $stmt_posts->execute();
+        $result = $stmt_posts->get_result();
 
-			if ($result->num_rows == 1) {
+        if ($result->num_rows == 1) {
 
-				$trow = $result->fetch_assoc();
+            $trow = $result->fetch_assoc();
 
-				$wfresult = $this->conn->query("SELECT * FROM wordfilter WHERE active=1");
+            $stmt_wf = $this->conn->prepare("SELECT * FROM wordfilter WHERE active = 1");
+            $stmt_wf->execute();
+            $wfresult = $stmt_wf->get_result();
 
-				$replace_array = array();
+            $replace_array = array();
 
-				while ($row = $wfresult->fetch_assoc()) {
+            while ($row = $wfresult->fetch_assoc()) {
 
-					if ($row['boards'] != "%") {
+                if ($row['boards'] != "%") {
 
-						$boards = explode(",", $row['boards']);
+                    $boards = explode(",", $row['boards']);
 
-						if (in_array($board, $boards)) {
+                    if (in_array($board, $boards)) {
 
-							$replace_array[$row['search']] = $row['replace'];
+                        $replace_array[$row['search']] = $row['replace'];
 
-						}
+                    }
 
-					} else {
+                } else {
 
-						$replace_array[$row['search']] = $row['replace'];
+                    $replace_array[$row['search']] = $row['replace'];
 
-					}
+                }
 
-				}
+            }
 
-				include_once "libs/jbbcode/Parser.php";
+            include_once "libs/jbbcode/Parser.php";
 
-				$parser = new \JBBCode\Parser();
+            $parser = new \JBBCode\Parser();
 
-				if ($boarddata['bbcode'] == 1) {
+            if ($boarddata['bbcode'] == 1) {
 
-					$bbcode = $this->conn->query("SELECT * FROM bbcodes;");
+                $bbcode = $this->conn->query("SELECT * FROM bbcodes;");
 
-					while ($row = $bbcode->fetch_assoc()) {
+                while ($row = $bbcode->fetch_assoc()) {
 
-						$parser->addBBCode($row['name'], $row['code']);
+                    $parser->addBBCode($row['name'], $row['code']);
 
-					}
+                }
 
-				}
+            }
 
-				$embed_table = array();
+            $embed_table = array();
 
-				$result = $this->conn->query("SELECT * FROM embeds;");
+            $result = $this->conn->query("SELECT * FROM embeds;");
 
-				while ($row = $result->fetch_assoc()) {
+            while ($row = $result->fetch_assoc()) {
 
-					$embed_table[] = $row;
+                $embed_table[] = $row;
 
-				}
+            }
 
-				$extensions = array();
+            $extensions = array();
 
-				$result = $this->conn->query("SELECT * FROM extensions;");
+            $result = $this->conn->query("SELECT * FROM extensions;");
 
-				while ($row = $result->fetch_assoc()) {
+            while ($row = $result->fetch_assoc()) {
 
-					$extensions[$row['mimetype']]['image'] = $row['image'];
+                $extensions[$row['mimetype']]['image'] = $row['image'];
 
-				}
+            }
 
-				$file = $this->getThread($trow['board'], 0, 0, 0, $parser, $boarddata, $replace_array, $embed_table, $trow, $extensions, 1);
+            $file = $this->getThread($trow['board'], 0, 0, 0, $parser, $boarddata, $replace_array, $embed_table, $trow, $extensions, 1);
 
-				$this->_parser = $parser;
+            $this->_parser = $parser;
+            $this->_replace_array = $replace_array;
 
-				$this->_replace_array = $replace_array;
+        }
 
-			}
+    }
 
-		}
-
-	}
+}
 
 	/**
 	 * getThread

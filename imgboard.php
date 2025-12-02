@@ -1,5 +1,9 @@
 <?php
-$servLoad = sys_getloadavg();
+if (function_exists('sys_getloadavg')) {
+    $servLoad = sys_getloadavg();
+} else {
+    $servLoad = [0, 0, 0];
+}
 $maxServLoad = 50;
 if ($servLoad[0] >= $maxServLoad) {
     header('HTTP/1.1 503 Service Temporarily Unavailable');
@@ -591,7 +595,7 @@ if (!empty($_POST['mode'])) {
 
         $thumb_h = 0;
 
-        if ((substr($filename, 0, 6) != "embed:") && ($gen_thumb == 1)) {
+       if ((substr($filename ?? '', 0, 6) != "embed:") && ($gen_thumb == 1)) {
 
             if (!empty($_FILES['upfile']['tmp_name'])) {
 
