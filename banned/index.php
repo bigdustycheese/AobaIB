@@ -2,7 +2,7 @@
 
 <head>
 
-    <title>314chan Banners</title>
+    <title>aoIB Banners</title>
 
     <meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
 
