@@ -2,7 +2,7 @@
 
 This fork is under repair, please only use it in a local environment.
 # Requirements
-1. PHP >= 7.4
+1. PHP >= 8.2
 2. MySQL/MariaDB server
 3. mbstring
 4. ffmpeg
