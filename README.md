@@ -1,7 +1,14 @@
 ## WARNING!!!!!!
 
 This fork is under repair, please only use it in a local environment.
-
+# Requirements
+PHP >= 7.4
+MySQL/MariaDB server
+mbstring
+ffmpeg
+ImageMagick
+PHP GD
+PHP PDO
 # How to install
 
 1. create a database
