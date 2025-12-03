@@ -2,7 +2,7 @@
 
 if (file_exists("./config.php")) {
 
-    die("Haruko has already been installed!");
+    die("AobaIB has already been installed!");
 
 }
 
@@ -22,7 +22,7 @@ if (!defined('PHP_VERSION_ID')) {
 
 <head>
 
-<title>Haruko</title>
+<title>AobaIB</title>
 
 <link rel="stylesheet" href="/css/yotsuba.css" />
 
@@ -122,7 +122,7 @@ case "install":
 
 <div class="box-inner">
 
-<div class="boxbar"><h2>Haruko installer</h2></div>
+<div class="boxbar"><h2>AobaIB installer</h2></div>
 
 <div class="boxcontent">
 
@@ -331,7 +331,7 @@ case "install2":
 
 <div class="box-inner">
 
-<div class="boxbar"><h2>Haruko installed succesfully!</h2></div>
+<div class="boxbar"><h2>AobaIB installed succesfully!</h2></div>
 
 <div class="boxcontent">
 
@@ -389,15 +389,15 @@ default:
 
     $tests = array();
 
-    $tests[] = array('category' => 'Environment', 'name' => 'Is PHP version >= 5.3?', 'test' => PHP_VERSION_ID >= 50300, 'on_fail' => 'fatal_error', 'fail_message' => 'Haruko requires at least PHP version 5.3 to run.');
+    $tests[] = array('category' => 'Environment', 'name' => 'Is PHP version >= 5.3?', 'test' => PHP_VERSION_ID >= 50300, 'on_fail' => 'fatal_error', 'fail_message' => 'AobaIB requires at least PHP version 5.3 to run.');
 
-    $tests[] = array('category' => 'Environment', 'name' => 'Is PHP version >= 5.4?', 'test' => PHP_VERSION_ID >= 50400, 'on_fail' => 'warning', 'fail_message' => 'In future Haruko will require PHP version 5.4, so you should get ready for it.');
+    $tests[] = array('category' => 'Environment', 'name' => 'Is PHP version >= 5.4?', 'test' => PHP_VERSION_ID >= 50400, 'on_fail' => 'warning', 'fail_message' => 'In future AobaIB will require PHP version 5.4, so you should get ready for it.');
 
-    $tests[] = array('category' => 'Environment', 'name' => 'Is MySQLi extension installed?', 'test' => extension_loaded("mysqli"), 'on_fail' => 'fatal_error', 'fail_message' => 'Haruko requires MySQLi to store boards, posts and stuff.');
+    $tests[] = array('category' => 'Environment', 'name' => 'Is MySQLi extension installed?', 'test' => extension_loaded("mysqli"), 'on_fail' => 'fatal_error', 'fail_message' => 'AobaIB requires MySQLi to store boards, posts and stuff.');
 
     $tests[] = array('category' => 'Environment', 'name' => 'Is safe mode disabled?', 'test' => !ini_get('safe_mode'), 'on_fail' => 'warning', 'fail_message' => 'PHP safe mode may cause problems in future.');
 
-    $tests[] = array('category' => 'Features', 'name' => 'Is mime_content_type supported?', 'test' => function_exists("mime_content_type"), 'on_fail' => 'fatal_error', 'fail_message' => 'Haruko needs mime_content_type to detect filetypes of uploaded files');
+    $tests[] = array('category' => 'Features', 'name' => 'Is mime_content_type supported?', 'test' => function_exists("mime_content_type"), 'on_fail' => 'fatal_error', 'fail_message' => 'AobaIB needs mime_content_type to detect filetypes of uploaded files');
 
     $tests[] = array('category' => 'Features', 'name' => 'Is fileinfo installed?', 'test' => extension_loaded("fileinfo"), 'on_fail' => 'warning', 'fail_message' => 'Fileinfo is a better way to detect mimetypes than mime_content_type');
 
@@ -411,9 +411,9 @@ default:
 
     $tests[] = array('category' => 'File system', 'name' => 'Is ' . getcwd() . '/modules/ writable?', 'test' => is_writable("./modules/"), 'on_fail' => 'fatal_error', 'fail_message' => 'You have to set up 755 permissions for ' . getcwd() . '/modules/ or you won\'t be able to upload new modules');
 
-    $tests[] = array('category' => 'Imaging', 'name' => 'Is GD extension available and JPG, GIF and PNG supported?', 'test' => (extension_loaded("gd")) && (function_exists('imagecreatefromjpeg')) && (function_exists('imagecreatefromgif')) && (function_exists('imagecreatefrompng')), 'on_fail' => 'fatal_error', 'fail_message' => 'Haruko requires GD to thumbnail images.');
+    $tests[] = array('category' => 'Imaging', 'name' => 'Is GD extension available and JPG, GIF and PNG supported?', 'test' => (extension_loaded("gd")) && (function_exists('imagecreatefromjpeg')) && (function_exists('imagecreatefromgif')) && (function_exists('imagecreatefrompng')), 'on_fail' => 'fatal_error', 'fail_message' => 'AobaIB requires GD to thumbnail images.');
 
-    $tests[] = array('category' => 'Imaging', 'name' => 'Is imagick PHP extension available?', 'test' => extension_loaded("imagick"), 'on_fail' => 'warning', 'fail_message' => 'Haruko uses imagick to make animated thumbnails from GIFs.');
+    $tests[] = array('category' => 'Imaging', 'name' => 'Is imagick PHP extension available?', 'test' => extension_loaded("imagick"), 'on_fail' => 'warning', 'fail_message' => 'AobaIB uses imagick to make animated thumbnails from GIFs.');
 
 ?>
 
@@ -421,7 +421,7 @@ default:
 
 <div class="box-inner">
 
-<div class="boxbar"><h2>Haruko installer</h2></div>
+<div class="boxbar"><h2>AobaIB installer</h2></div>
 
 <div class="boxcontent">
 
@@ -519,7 +519,7 @@ foreach ($warnings as $msg) {
 
 if (count($fatals) >= 1) {
 
-    echo "<b>Haruko installation can not continue because of unsolved errors</b>";
+    echo "<b>AobaIB installation can not continue because of unsolved errors</b>";
 
 } else {
 

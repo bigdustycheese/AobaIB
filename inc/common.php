@@ -420,117 +420,64 @@ class Common {
      * @since
      */
     function thumb($board, $filename, $ext, $s = 250) {
-    $filename = $filename;
+    $thumbDirectory = './'.$board.'/src/thumb/';
+    $filePath = './'.$board.'/src/'.$filename.$ext;
+
+    if (!file_exists($filePath)) {
+        return ["width" => 0, "height" => 0];
+    }
+
     $extension = $this->getGraphicsExtension();
-    
+
     if ($ext == ".webm" || $ext == ".mp4") {
-        $fname = './'.$board.'/src/'.$filename.$ext;
-        $thumbDirectory = './'.$board.'/src/thumb/';
-
         require_once dirname(__FILE__) . '/webm.class.php';
-
-        $movie = new \webm($fname);
-
-        if ($movie->thumbnail($thumbDirectory.$filename.'.gif', $s, $s))
-            return array("width" => $s, "height" => $s);
+        $movie = new \webm($filePath);
+        if ($movie->thumbnail($thumbDirectory.$filename.'.gif', $s, $s)) {
+            return ["width" => $s, "height" => $s];
+        }
+        return ["width" => 0, "height" => 0];
     }
 
+    // Manejo de URLs embebidas
     if (str_contains($filename ?? '', "url:")) {
-        return 0;
+        return ["width" => 0, "height" => 0];
     }
 
+    // Manejo de imágenes con Imagick
     if (($extension == "imagick") && !($ext == ".webm") && !($ext == ".mp4")) {
-        $fname = './' . $board . '/src/' . $filename;
-        $thumbDirectory = './' . $board . '/src/thumb/';
-        $width = $s;
-        $height = $s;
         try {
-            $img = new \Imagick($fname.$ext);
+            $img = new \Imagick($filePath);
             $img->setImageColorspace(13);
             $img = $img->coalesceImages();
-
             foreach ($img as $frame) {
-                $frame->thumbnailImage($width, $height, true);
+                $frame->thumbnailImage($s, $s, true);
             }
-
             $img->writeImages($thumbDirectory . $filename . $ext, true);
-
-            $ig = $img->getImageGeometry();
+            $geometry = $img->getImageGeometry();
             $img->destroy();
+            return $geometry;
         } catch (\Exception $e) {
-
+            return ["width" => 0, "height" => 0];
         }
+    }
 
-        return $ig;
-    } elseif ($extension == "gd") {
-        if (!function_exists("ImageCreate") || !function_exists("ImageCreateFromJPEG")) return;
-        $fname = './' . $board . '/src/' . $filename.$ext;
-        $thumbDirectory = './' . $board . '/src/thumb/';
-        $width = $s;
-        $height = $s;
-
-        $size = getimagesize($fname);
-        $type = "jpg";
-
-        try {
-            if (!is_array($size) || !isset($size[2])) {
-            return -2;
-        }
+    if ($extension == "gd") {
+        $size = @getimagesize($filePath);
+        if (!$size || !isset($size[2])) return ["width" => 0, "height" => 0];
 
         switch ($size[2]) {
-                case 1:
-                    if (!function_exists("ImageCreateFromGIF")) return;
-                    $im_in = ImageCreateFromGIF($fname);
-                    $type = "gif";
-                    if (!$im_in) {
-                        return -1;
-                    }
-
-                    break;
-
-                case 2:
-                    $im_in = ImageCreateFromJPEG($fname);
-                    $type = "jpg";
-                    if (!$im_in) {
-                        return -1;
-                    }
-
-                    break;
-
-                case 3:
-                    if (!function_exists("ImageCreateFromPNG")) return;
-                    $im_in = ImageCreateFromPNG($fname);
-                    $type = "png";
-                    if (!$im_in) {
-                        return -1;
-                    }
-
-                    break;
-
-                default:
-                    return -2;
-            }
-        }catch(Exception $e) {
-            return -1;
+            case IMAGETYPE_GIF: $im_in = @imagecreatefromgif($filePath); $type="gif"; break;
+            case IMAGETYPE_JPEG: $im_in = @imagecreatefromjpeg($filePath); $type="jpg"; break;
+            case IMAGETYPE_PNG: $im_in = @imagecreatefrompng($filePath); $type="png"; break;
+            default: return ["width" => 0, "height" => 0];
         }
+        if (!$im_in) return ["width" => 0, "height" => 0];
 
-        if ($size[0] > $width || $size[1] > $height) {
-            $key_w = $width / $size[0];
-            $key_h = $height / $size[1];
-            ($key_w < $key_h) ? $keys = $key_w : $keys = $key_h;
-            $out_w = ceil($size[0] * $keys) + 1;
-            $out_h = ceil($size[1] * $keys) + 1;
-        } else {
-            $out_w = $size[0];
-            $out_h = $size[1];
-        }
+        $ratio = min($s/$size[0], $s/$size[1]);
+        $out_w = ceil($size[0]*$ratio);
+        $out_h = ceil($size[1]*$ratio);
 
-        if (function_exists("ImageCreateTrueColor")) {
-            $im_out = ImageCreateTrueColor($out_w, $out_h);
-        } else {
-            $im_out = ImageCreate($out_w, $out_h);
-        }
-
+        $im_out = function_exists("imagecreatetruecolor") ? imagecreatetruecolor($out_w, $out_h) : imagecreate($out_w, $out_h);
         imagealphablending($im_out, false);
         imagesavealpha($im_out, true);
         $trans_layer_overlay = imagecolorallocatealpha($im_out, 220, 220, 220, 127);
@@ -539,25 +486,19 @@ class Common {
         imagecopyresampled($im_out, $im_in, 0, 0, 0, 0, $out_w, $out_h, $size[0], $size[1]);
 
         switch ($type) {
-            case "jpg":
-                ImageJPEG($im_out, $thumbDirectory . $filename . $ext, 70);
-            break;
-
-            case "png":
-                ImagePNG($im_out, $thumbDirectory . $filename . $ext, 9);
-            break;
-
-            case "gif":
-                ImageGIF($im_out, $thumbDirectory . $filename . $ext);
-            break;
+            case "jpg": imagejpeg($im_out, $thumbDirectory.$filename.$ext, 70); break;
+            case "png": imagepng($im_out, $thumbDirectory.$filename.$ext, 9); break;
+            case "gif": imagegif($im_out, $thumbDirectory.$filename.$ext); break;
         }
 
-        chmod($thumbDirectory . $filename . $ext, 0666); 
+        chmod($thumbDirectory.$filename.$ext, 0666);
+        imagedestroy($im_in);
+        imagedestroy($im_out);
 
-        ImageDestroy($im_in);
-        ImageDestroy($im_out);
-        return array("width" => $out_w, "height" => $out_h);
+        return ["width"=>$out_w, "height"=>$out_h];
     }
+
+    return ["width" => 0, "height" => 0];
 }
 
     /**

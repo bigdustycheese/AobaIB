@@ -226,7 +226,7 @@ function processEntry($conn, $string)
         $line = trim($line);
         if (! empty($line) && substr($line, 0, 1) != "<") {
             $line = htmlspecialchars($line, ENT_QUOTES, 'UTF-8');
-            $new . = "<p>" . strip_tags($line, $allowedTags) .  "</p>";
+            $new .= "<p>" . strip_tags($line, $allowedTags) .  "</p>";
         }
     }
     return $new;

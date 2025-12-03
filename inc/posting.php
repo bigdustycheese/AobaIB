@@ -18,6 +18,12 @@ namespace Mitsuba;
  */
 class Posting
 {
+    const ERR_INVALID_PASSWORD = -1;
+    const ERR_POST_NOT_FOUND = -2;
+    const ERR_CANNOT_DELETE_YET = -4;
+    const ERR_BOARD_INVALID = -16;
+    const ERR_REPORT_INVALID = -15;
+
 
     private $conn;
 
@@ -96,13 +102,19 @@ class Posting
 
             if (!$this->mitsuba->common->isBoard($board)) {
 
-                return -16;
+                return -1;  // -> return self::ERR_INVALID_PASSWORD;
+                return -2;  // -> return self::ERR_POST_NOT_FOUND;
+
 
             }
 
             $bdata = $this->mitsuba->common->getBoardData($board);
 
-            $result = $this->conn->query("SELECT * FROM posts WHERE id=" . $postno . " AND board='" . $board . "' AND deleted=0");
+            $stmt = $this->conn->prepare("SELECT * FROM posts WHERE id=? AND board=? AND deleted=0");
+            $stmt->bind_param("is", $postno, $board);
+            $stmt->execute();
+            $result = $stmt->get_result();
+
 
             if ($result->num_rows == 1) {
 
@@ -120,7 +132,9 @@ class Posting
 
                     if (md5($password) != $postdata['password']) {
 
-                        return -1;
+                        return -1;  // -> return self::ERR_INVALID_PASSWORD;
+                        return -2;  // -> return self::ERR_POST_NOT_FOUND;
+
 
                     }
 
@@ -146,9 +160,8 @@ class Posting
 
                         if ((substr($filename, 0, 6) != "embed:") && (substr($filename, 0, 4) != "url:") && ($filename != "deleted")) {
 
-                            unlink("./" . $board . "/src/" . $filename);
+                        
 
-                            unlink("./" . $board . "/src/thumb/" . $filename);
 
                         }
 
@@ -204,7 +217,7 @@ class Posting
 
                 } else {
 
-                    if ($postdata['resto'] == 0) //we'll have to delete whole thread
+              if ($postdata['resto'] == 0) //we'll have to delete whole thread
 
                     {
 
@@ -326,9 +339,11 @@ class Posting
 
                             if ((substr($filename, 0, 6) != "embed:") && ($filename != "deleted")) {
 
-                                unlink("./" . $board . "/src/" . $filename);
+                               $this->deleteFile($board, $filename);
 
-                                unlink("./" . $board . "/src/thumb/" . $filename);
+
+                                $this->deleteFile($board, $filename);
+
 
                             }
 
@@ -431,7 +446,8 @@ class Posting
 
         if (!$this->mitsuba->common->isBoard($board)) {
 
-            return -16;
+            return -1;  // -> return self::ERR_INVALID_PASSWORD;
+            return -2;  // -> return self::ERR_POST_NOT_FOUND;
 
         }
 
@@ -667,35 +683,35 @@ class Posting
 
         $fsize = "";
 
-        if ((!empty($fname2)) && ($fname2 != "embed") && ($fname2 != "url")) {
+        $filename = $filename ?? "";
 
-            if (substr($filename, 0, 8) == "spoiler:") {
+if (substr($filename, 0, 8) === "spoiler:") {
+    $filePath = "./$board/src/" . substr($filename, 8);
+    if (file_exists($filePath)) {
+        $d = getimagesize($filePath);
+        $isize = ($d && isset($d[0], $d[1])) ? $d[0] . "x" . $d[1] : "unknown";
+        $osize = filesize($filePath);
+        $fsize = $this->mitsuba->common->human_filesize($osize);
+    } else {
+        $isize = "unknown";
+        $osize = 0;
+        $fsize = "0B";
+    }
+} else {
+    $filePath = "./$board/src/$filename";
+    if (file_exists($filePath)) {
+        $d = @getimagesize($filePath);
+        $isize = ($d && isset($d[0], $d[1])) ? $d[0] . "x" . $d[1] : "unknown";
+        $osize = filesize($filePath);
+        $fsize = $this->mitsuba->common->human_filesize($osize);
+    } else {
+        $isize = "unknown";
+        $osize = 0;
+        $fsize = "0B";
+    }
+}
 
-                $d = getimagesize("./" . $board . "/src/" . substr($filename, 8));
 
-                $isize = $d[0] . "x" . $d[1];
-
-                $osize = filesize("./" . $board . "/src/" . substr($filename, 8));
-
-                $fsize = $this->mitsuba->common->human_filesize($osize);
-
-            } else {
-
-                $d = getimagesize("./" . $board . "/src/" . $filename);
-
-                                if (is_array($d) && isset($d[0], $d[1])) {
-                    $isize = $d[0] . "x" . $d[1];
-                } else {
-                    $isize = "unknown"; // o ""
-                }
-
-                $osize = filesize("./" . $board . "/src/" . $filename);
-
-                $fsize = $this->mitsuba->common->human_filesize($osize);
-
-            }
-
-        }
 
         if (empty($capText)) {
 
@@ -740,51 +756,41 @@ class Posting
             }
 
         }
+   
+                    $customFieldsValuesStr = "";
+        foreach ($customFields as $key => $value) {
+            if (!empty($fields[$key])) {
+                $customFieldsValuesStr .= ", '" . $this->conn->real_escape_string($value ?? "") . "'";
+            }
+        }
 
-        $insertValues = [
-    $board,
-    time(),
-    $name,
-    $trip,
-    $strip,
-    $posterID,
-    $email,
-    $subject,
-    $comment,
-    md5($password),
-    $origFilename,
-    $filename,
-    $resto,
-    $this->mitsuba->common->getIP(),
-    $lastbumped,
-    $md5,
-    $osize,
-    $fsize,
-    $isize,
-    $mimetype,
-    $thumbW,
-    $thumbH,
-    $sticky,
-    0,
-    $locked,
-    $raw,
-    $capText,
-    $capStyle,
-    $capIcon,
-        0
-    ];
+        $boardEsc = $this->conn->real_escape_string($board);
+        $nameEsc = $this->conn->real_escape_string($name);
+        $tripEsc = $this->conn->real_escape_string($trip);
+        $stripEsc = $this->conn->real_escape_string($strip);
+        $posterIDEsc = $this->conn->real_escape_string($posterID);
+        $emailEsc = $this->conn->real_escape_string($email);
+        $subjectEsc = $this->conn->real_escape_string($subject);
+        $commentEsc = $this->conn->real_escape_string($comment);
+        $origFilenameEsc = $this->conn->real_escape_string($origFilename);
+        $filenameEsc = $this->conn->real_escape_string($filename);
+        $mimetypeEsc = $this->conn->real_escape_string($mimetype);
+        $md5Esc = $this->conn->real_escape_string($md5);
+        $capTextEsc = $this->conn->real_escape_string($capText);
+        $capStyleEsc = $this->conn->real_escape_string($capStyle);
+        $capIconEsc = $this->conn->real_escape_string($capIcon);
 
-    $insertFields = "board, `date`, name, trip, strip, poster_id, email, subject, comment, password, orig_filename, filename, resto, ip, lastbumped, filehash, orig_filesize, filesize, imagesize, mimetype, t_w, t_h, sticky, sage, locked, raw, capcode_text, capcode_style, capcode_icon, deleted";
+        $sql = "
+        INSERT INTO posts 
+        (board, `date`, name, trip, strip, poster_id, email, subject, comment, password, orig_filename, filename, resto, ip, lastbumped, filehash, orig_filesize, filesize, imagesize, mimetype, t_w, t_h, sticky, sage, locked, raw, capcode_text, capcode_style, capcode_icon, deleted $customFieldsNames)
+        VALUES 
+        ('$boardEsc', " . time() . ", '$nameEsc', '$tripEsc', '$stripEsc', '$posterIDEsc', '$emailEsc', '$subjectEsc', '$commentEsc', '" . md5($password) . "', '$origFilenameEsc', '$filenameEsc', $resto, '" . $this->mitsuba->common->getIP() . "', $lastbumped, '$md5Esc', $osize, '$fsize', '$isize', '$mimetypeEsc', $thumbW, $thumbH, $sticky, 0, $locked, $raw, '$capTextEsc', '$capStyleEsc', '$capIconEsc', 0 $customFieldsValuesStr)
+        ";
 
-    $placeholders = implode(",", array_fill(0, count($insertValues), "?"));
-    $types = "ssisssssssssiisiiiiiiiissssi";
-
-    $this->mitsuba->safeExecute(
-        "INSERT INTO posts (" . $insertFields . ") VALUES (" . $placeholders .  ")",
-        $types,
-        $insertValues
-    );
+        $this->conn->query($sql);
         $id = $this->conn->insert_id;
+
+
 
         if (empty($fakeID)) {
 
@@ -863,6 +869,7 @@ class Posting
                 } else {
 
                     echo '<meta http-equiv="refresh" content="2;URL=' . "'./" . $board . "/res/" . $id . ".html'" . '">';
+
 
                 }
 
@@ -955,7 +962,9 @@ class Posting
 
             if (!$this->mitsuba->common->isBoard($board)) {
 
-                return -16;
+                return -1;  // -> return self::ERR_INVALID_PASSWORD;
+                return -2;  // -> return self::ERR_POST_NOT_FOUND;
+
 
             }
 
@@ -975,19 +984,25 @@ class Posting
 
                 } else {
 
-                    return 1;
+                   return -1;  // -> return self::ERR_INVALID_PASSWORD;
+                   return -2;  // -> return self::ERR_POST_NOT_FOUND;
+
 
                 }
 
             } else {
 
-                return -15;
+                return -1;  // -> return self::ERR_INVALID_PASSWORD;
+                return -2;  // -> return self::ERR_POST_NOT_FOUND;
+
 
             }
 
         } else {
 
-            return -15;
+            return -1;  // -> return self::ERR_INVALID_PASSWORD;
+            return -2;  // -> return self::ERR_POST_NOT_FOUND;
+
 
         }
 

@@ -4551,8 +4551,8 @@ class Caching
 						$file['fsize'] = $row['orig_filesize'];
 						$file['mimetype'] = $row['mimetype'];
 						$sze = explode("x", $row['imagesize']);
-						$file['w'] = $sze[0];
-						$file['h'] = $sze[1];
+						$file['w'] = $sze[0] ?? 0;
+						$file['h'] = $sze[1] ?? 0;
 						$file['t_w'] = $row['t_w'];
 						$file['t_h'] = $row['t_h'];
 						$post['files'][] = $file;
