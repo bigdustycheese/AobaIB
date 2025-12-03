@@ -741,8 +741,49 @@ class Posting
 
         }
 
-        $this->conn->query("INSERT INTO posts (board, `date`, name, trip, strip, poster_id, email, subject, comment, password, orig_filename, filename, resto, ip, lastbumped, filehash, orig_filesize, filesize, imagesize, mimetype, t_w, t_h, sticky, sage, locked, raw, capcode_text, capcode_style, capcode_icon, deleted" . $customFieldsNames . ")" . "VALUES ('" . $board . "', " . time() . ", '" . $name . "', '" . $trip . "', '" . $strip . "', '" . $this->conn->real_escape_string($posterID) . "', '" . $this->mitsuba->common->processString($email) . "', '" . $this->mitsuba->common->processString($subject) . "', '" . $this->mitsuba->common->preprocessComment($comment) . "', '" . md5($password) . "', '" . $this->mitsuba->common->processString($origFilename) . "', '" . $filename . "', " . $resto . ", '" . $this->mitsuba->common->getIP() . "', " . $lastbumped . ", '" . $md5 . "', " . $osize . ", '" . $fsize . "', '" . $isize . "', '" . $mimetype . "', " . $thumbW . ", " . $thumbH . ", " . $sticky . ", 0, " . $locked . ", " . $raw . ", '" . $capText . "', '" . $capStyle . "', '" . $capIcon . "', 0" . $customFieldsValues . ")");
+        $insertValues = [
+    $board,
+    time(),
+    $name,
+    $trip,
+    $strip,
+    $posterID,
+    $email,
+    $subject,
+    $comment,
+    md5($password),
+    $origFilename,
+    $filename,
+    $resto,
+    $this->mitsuba->common->getIP(),
+    $lastbumped,
+    $md5,
+    $osize,
+    $fsize,
+    $isize,
+    $mimetype,
+    $thumbW,
+    $thumbH,
+    $sticky,
+    0,
+    $locked,
+    $raw,
+    $capText,
+    $capStyle,
+    $capIcon,
+        0
+    ];
 
+    $insertFields = "board, `date`, name, trip, strip, poster_id, email, subject, comment, password, orig_filename, filename, resto, ip, lastbumped, filehash, orig_filesize, filesize, imagesize, mimetype, t_w, t_h, sticky, sage, locked, raw, capcode_text, capcode_style, capcode_icon, deleted";
+
+    $placeholders = implode(",", array_fill(0, count($insertValues), "?"));
+    $types = "ssisssssssssiisiiiiiiiissssi";
+
+    $this->mitsuba->safeExecute(
+        "INSERT INTO posts (" . $insertFields . ") VALUES (" . $placeholders .  ")",
+        $types,
+        $insertValues
+    );
         $id = $this->conn->insert_id;
 
         if (empty($fakeID)) {

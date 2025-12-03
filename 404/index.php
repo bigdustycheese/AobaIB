@@ -2,7 +2,7 @@
 
 <head>
 
-    <title>314chan 404s</title>
+    <title>AobaIB 404s</title>
 
     <meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
 

@@ -1,5 +1,5 @@
 <?php
 
-define("MITSUBA_VERSION", "314chan internal");
+define("MITSUBA_VERSION", "AobaIB internal");
 
 ?>

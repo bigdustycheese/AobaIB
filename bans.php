@@ -79,10 +79,10 @@
                                 global $securetrip_salt;
                                 $logs = 1;
                                 while($row = $result->fetch_assoc()){
-                                                echo "<tr>";
-                                                echo "<td>".crypt($row['ip'], $securetrip_salt)."</td>";
-                                                echo "<td>".mb_strimwidth($row['reason'], 0, 15, "...")."</td>";
-                                                echo "<td>".date("d/m/Y @ H:i", $row['created'])."</td>";
+                                            echo "<tr>";
+                                            echo "<td>" . htmlspecialchars(crypt($row['ip'], $securetrip_salt), ENT_QUOTES, 'UTF-8') . "</td>";
+                                            echo "<td>" . htmlspecialchars(mb_strimwidth($row['reason'], 0, 15, "..."), ENT_QUOTES, 'UTF-8') . "</td>";
+                                            echo "<td>" . htmlspecialchars(date("d/m/Y @ H:i", $row['created']), ENT_QUOTES, 'UTF-8') .  "</td>";
                                     if ($row['expires'] != 0) {
                                         echo "<td>".date("d/m/Y @ H:i", $row['expires'])."</td>";
                                     } else {
@@ -98,7 +98,7 @@
                                             echo "<td>".implode(', ', $banBoards)."</td>";
                                         }
                                     }
-                                                echo "<td>".$row['username']."</td>";
+                                                echo "<td>" . htmlspecialchars($row['username'], ENT_QUOTES, 'UTF-8') . "</td>";
                                     if ($row['seen']==1) {
                                         echo "<td style='background-color:#228B22'></td>";
                                     } else {

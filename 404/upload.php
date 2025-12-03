@@ -2,7 +2,7 @@
 
 <head>
 
-    <title>314chan Banners</title>
+    <title>AobaIB Banners</title>
 
     <meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
 
@@ -70,8 +70,25 @@ if ((($_FILES["file"]["type"] == "image/gif") || ($_FILES["file"]["type"] == "im
 
         }else {
 
-            move_uploaded_file($_FILES["file"]["tmp_name"], "" . $_FILES["file"]["name"]);
+            $filename = basename($_FILES["file"]["name"]);
+            $filename = preg_replace('/[^a-zA-Z0-9._-]/', '', $filename);
+            $uploadDir = __DIR__ . "/upload/";
 
+            if (!is_dir($uploadDir)) {
+                mkdir($uploadDir, 0755, true);
+            }
+
+            $filePath = $uploadDir . $filename;
+
+            if (file_exists($filePath)) {
+                echo htmlspecialchars($filename, ENT_QUOTES, 'UTF-8') . " already exists. ";
+            } else {
+                if (move_uploaded_file($_FILES["file"]["tmp_name"], $filePath)) {
+                    echo "<h1>Thanks!  '" . htmlspecialchars($filename, ENT_QUOTES, 'UTF-8') . "' has been uploaded.</h1>";
+                } else {
+                    echo "Upload failed";
+                }
+            }
             echo "<h1>Thanks! '" . $_FILES["file"]["name"] . "' has been uploaded.</h1>";
 
         }

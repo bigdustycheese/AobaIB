@@ -149,12 +149,11 @@ if (!empty($_POST['mode'])) {
 
             exit;
         }
-        if (($mitsuba->common->isLocked(isset($_POST['resto']))) && !($_GET['mod'] >= 1)) {
-          var_dump($_GET);
+        $resto = isset($_POST['resto']) ?  intval($_POST['resto']) : 0;
+        if (($mitsuba->common->isLocked($resto)) && !($_GET['mod'] >= 1)) {
             $mitsuba->common->showMsg($lang['img/error'], $lang['img/thread_locked']);
             exit;
         }
-
         $md5 = "";
 
         $bdata = $mitsuba->common->getBoardData($_POST['board']);
@@ -190,17 +189,37 @@ if (!empty($_POST['mode'])) {
             }
 
         }
-        $time = new DateTime();
         $ignoresCaptcha = $mitsuba->admin->checkPermission("post.ignorecaptcha");
-        $captchaOn = isset($bdata['captcha']);
-        $notExpired = $time->getTimestamp() <= isset($_POST['captcha']) + 120;
-      if ((!$ignoresCaptcha) && (intval($bdata['captcha']) == 1) && (!($notExpired))) {
-            $mitsuba->common->showMsg($lang['img/error'], $lang['img/wrong_captcha']);
-            exit;
-        }
+$captchaRequired = intval($bdata['captcha']) == 1;
 
-        $_SESSION['captcha'] = "";
+if (!$ignoresCaptcha && $captchaRequired) {
+    if (empty($_POST['captcha']) || empty($_SESSION['captcha']) || empty($_SESSION['captcha_time'])) {
+        $mitsuba->common->showMsg($lang['img/error'], $lang['img/wrong_captcha']);
+        exit;
+    }
+    
+    $timePassed = time() - $_SESSION['captcha_time'];
+    if ($timePassed > 120) {
+        unset($_SESSION['captcha']);
+        unset($_SESSION['captcha_time']);
+        $mitsuba->common->showMsg($lang['img/error'], $lang['img/wrong_captcha']);
+        exit;
+    }
+    
+    if ($_POST['captcha'] !== $_SESSION['captcha']) {
+        unset($_SESSION['captcha']);
+        unset($_SESSION['captcha_time']);
+        $mitsuba->common->showMsg($lang['img/error'], $lang['img/wrong_captcha']);
+        exit;
+    }
+}
 
+if (isset($_SESSION['captcha'])) {
+    unset($_SESSION['captcha']);
+}
+if (isset($_SESSION['captcha_time'])) {
+    unset($_SESSION['captcha_time']);
+}
         $wfresult = $conn->query("SELECT * FROM wordfilter WHERE active=1");
 
         $replace_array = array();
@@ -503,7 +522,7 @@ if (!empty($_POST['mode'])) {
 
                 if (($bdata['nodup'] == 1) && (($mod == 0) || (!$mitsuba->admin->checkPermission("post.ignorenodup")))) {
 
-                    $isit = $conn->query("SELECT * FROM posts WHERE filehash='" . $md5 . "' AND board='" . $_POST['board'] . "'");
+                    $isit = $mitsuba->safeQuery( "SELECT * FROM posts WHERE filehash = ?  AND board = ?", "ss", [$md5, $_POST['board']] );
 
                     if ($isit->num_rows >= 1) {
 
@@ -722,12 +741,9 @@ if (!empty($_POST['mode'])) {
         }
 
         if (!empty($url)) {
-
-            $filename = "url:" . $conn->real_escape_string($url);
-
-            $fname = $conn->real_escape_string($url_title);
-
-        }
+    $filename = "url:" . $url;
+    $fname = $url_title;
+    }
 
         //We'll remove here all "non-printable" characters
 
@@ -830,7 +846,11 @@ if (!empty($_POST['mode'])) {
 
         } elseif (!empty($_POST['report'])) {
 
-            $board = $conn->real_escape_string($_POST['board']);
+            $board = $_POST['board'];
+            if (! $mitsuba->common->isBoard($board)) {
+                $mitsuba->common->showMsg($lang['img/error'], $lang['img/board_no_exists']);
+                exit;
+            }
 
             $mitsuba->common->banMessage($board);
 
@@ -864,10 +884,9 @@ if (!empty($_POST['mode'])) {
 
         if (!empty($_POST['msg'])) {
 
-            $msg = $conn->real_escape_string(htmlspecialchars($_POST['msg']));
-
-            $email = $conn->real_escape_string(htmlspecialchars($_POST['email']));
-
+            $msg = htmlspecialchars($_POST['msg'], ENT_QUOTES, 'UTF-8');
+            
+            $email = htmlspecialchars($_POST['email'], ENT_QUOTES, 'UTF-8');
             $ipAddress = $mitsuba->common->getIP();
 
             if ($mitsuba->common->verifyBan($ipAddress, $_POST['banid'], $_POST['banrange'])) {

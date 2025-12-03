@@ -33,7 +33,8 @@ if(!$result = $conn->query($sql)) {
 
 }
 */
-phpinfo();
+header('Content-Type: application/json');
+echo json_encode(['error' => 'This page is under development']);
 ?>
 
 <!doctype html>

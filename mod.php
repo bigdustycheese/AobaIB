@@ -158,59 +158,48 @@ function deleteEntry($conn, $type, $id)
  */
 function updateEntry($conn, $type, $id, $who, $title, $text)
 {
-
     global $mitsuba;
 
-    if (!is_numeric($id)) {
-
+    if (! is_numeric($id) || $id <= 0) {
         return -1;
-
     }
 
-    $who = $conn->real_escape_string($who);
-
-    $title = $conn->real_escape_string($title);
-
-    $text = $conn->real_escape_string($text);
-
-    $table = "";
-
-    if ($type == 0) {
-
-        $table = "announcements";
-
+    $id = intval($id);
+    $validTables = ["announcements", "news"];
+    $tableName = ($type == 0) ? "announcements" : (($type == 1) ? "news" : null);
+    
+    if (! in_array($tableName, $validTables)) {
+        return -1;
     }
 
-    if ($type == 1) {
-
-        $table = "news";
-
-    }
-
-    if ($mitsuba->admin->checkPermission($table . ".update", $_SESSION['group'])) {
-
-        $conn->query("UPDATE " . $table . " SET who='" . $who . "', title='" . $title . "', text='" . $text . "' WHERE id=" . $id);
-
-    } elseif ($mitsuba->admin->checkPermission($table . ".update.own", $_SESSION['group'])) {
-
-        $result = $conn->query("SELECT * FROM " . $table . " WHERE id=" . $id);
-
-        $entry = $result->fetch_assoc();
-
-        if ($entry['mod_id'] == $_SESSION['id']) {
-
-            $conn->query("UPDATE " . $table . " SET who='" . $who . "', title='" . $title . "', text='" . $text . "' WHERE id=" . $id);
-
+    if ($mitsuba->admin->checkPermission($tableName . ".update", $_SESSION['group'])) {
+        $mitsuba->safeExecute(
+            "UPDATE " . $tableName . " SET who = ?, title = ?, text = ? WHERE id = ?",
+            "sssi",
+            [$who, $title, $text, $id]
+        );
+    } elseif ($mitsuba->admin->checkPermission($tableName . ".update.own", $_SESSION['group'])) {
+        $result = $mitsuba->safeQuery(
+            "SELECT mod_id FROM " . $tableName . " WHERE id = ?",
+            "i",
+            [$id]
+        );
+        
+        if ($result && $result->num_rows === 1) {
+            $entry = $result->fetch_assoc();
+            if ($entry['mod_id'] == $_SESSION['id']) {
+                $mitsuba->safeExecute(
+                    "UPDATE " . $tableName . " SET who = ?, title = ?, text = ? WHERE id = ?",
+                    "sssi",
+                    [$who, $title, $text, $id]
+                );
+            }
         }
-
     }
 
     if ($type == 1) {
-
         $mitsuba->caching->generateNews();
-
     }
-
 }
 
 /**
@@ -229,27 +218,18 @@ function updateEntry($conn, $type, $id, $who, $title, $text)
  */
 function processEntry($conn, $string)
 {
-
     $new = str_replace("\r", "", $string);
-
-    $new = $conn->real_escape_string($new);
-
     $lines = explode("\n", $new);
-
     $new = "";
-
+    $allowedTags = "<b><i><u><a>";
     foreach ($lines as $line) {
-
-        if (substr($line, 0, 1) != "<") {
-
-            $new.= "<p>" . strip_tags($line, "<script><style><link><meta><canvas>") . "</p>";
-
+        $line = trim($line);
+        if (! empty($line) && substr($line, 0, 1) != "<") {
+            $line = htmlspecialchars($line, ENT_QUOTES, 'UTF-8');
+            $new . = "<p>" . strip_tags($line, $allowedTags) .  "</p>";
         }
-
     }
-
     return $new;
-
 }
 
 if ((!empty($_SESSION['logged'])) && (!empty($_SESSION['cookie_set'])) && ($_SESSION['cookie_set'] == 2)) {

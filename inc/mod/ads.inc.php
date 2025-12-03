@@ -25,22 +25,20 @@ if($mitsuba->admin->canBoard("%")) {
             if ((!empty($_POST['shown'])) && (is_numeric($_POST['shown'])) && ($_POST['shown']==1)) { $shown = 1; 
             }
 
-            $text = "";
+            $text = ! empty($_POST['text']) ? $_POST['text'] : "";
+            $board = !empty($_POST['board']) ? $_POST['board'] : "%";
+            $position = !empty($_POST['position']) ? $_POST['position'] : "head";
 
-            $board = "%";
-
-            $position = "head";
-
-            if (!empty($_POST['text'])) { $text = $conn->real_escape_string($_POST['text']); 
+            $validPositions = ["head", "body", "footer"];
+            if (! in_array($position, $validPositions)) {
+                $position = "head";
             }
 
-            if (!empty($_POST['board'])) { $board = $conn->real_escape_string($_POST['board']); 
-            }
-
-            if (!empty($_POST['position'])) { $position = $conn->real_escape_string($_POST['position']); 
-            }
-
-            $conn->query("INSERT INTO ads (`text`, `board`, `position`, `show`) VALUES ('".$text."', '".$board."', '".$position."', ".$shown.")");
+            $mitsuba->safeExecute(
+                "INSERT INTO ads (`text`, `board`, `position`, `show`) VALUES (?, ?, ?, ?)",
+                "sssi",
+                [$text, $board, $position, $shown]
+            );
 
             echo $conn->error;
 
@@ -65,16 +63,21 @@ if($mitsuba->admin->canBoard("%")) {
 
                 $position = "head";
 
-                if (!empty($_POST['text'])) { $text = $conn->real_escape_string($_POST['text']); 
+                $text = !empty($_POST['text']) ? $_POST['text'] : "";
+                $board = !empty($_POST['board']) ? $_POST['board'] : "%";
+                $position = !empty($_POST['position']) ? $_POST['position'] : "head";
+                $adId = intval($_POST['id']);
+
+                $validPositions = ["head", "body", "footer"];
+                if (! in_array($position, $validPositions)) {
+                    $position = "head";
                 }
 
-                if (!empty($_POST['board'])) { $board = $conn->real_escape_string($_POST['board']); 
-                }
-
-                if (!empty($_POST['position'])) { $position = $conn->real_escape_string($_POST['position']); 
-                }
-
-                $conn->query("UPDATE ads SET board='".$board."', `text`='".$text."', position='".$position."', `show`=".$shown." WHERE id=".$_POST['id']);
+                $mitsuba->safeExecute(
+                    "UPDATE ads SET board = ?, `text` = ?, position = ?, `show` = ? WHERE id = ?",
+                    "sssii",
+                    [$board, $text, $position, $shown, $adId]
+                );
 
             }
 
@@ -96,8 +99,10 @@ if($mitsuba->admin->canBoard("%")) {
 
             if (is_numeric($_GET['i'])) {
 
-                $conn->query("DELETE FROM ads WHERE id=".$_GET['i']);
+            $adId = intval($_GET['i']);
 
+             $mitsuba->safeExecute("DELETE FROM ads WHERE id = ?", "i", [$adId]);
+            
             }
 
             break;

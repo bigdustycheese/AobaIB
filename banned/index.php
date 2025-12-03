@@ -2,7 +2,7 @@
 
 <head>
 
-    <title>aoIB Banners</title>
+    <title>AobaIB Banners</title>
 
     <meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
 
