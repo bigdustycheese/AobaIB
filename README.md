@@ -20,4 +20,5 @@ Remember to test it in a local environment.
 
 # How to contribute
 
-You can help by fixing parts of the code and leaving feedback. 
+You can help by fixing parts of the code and leaving feedback
+Add whatever you think is necessary. Feel free to contribute however you want. For now, fix all the bad code (which isn't much) and start adding things
