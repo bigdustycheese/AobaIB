@@ -297,7 +297,7 @@ case "/":
     include "inc/mod/main.inc.php";
 
     break;
-}
+//} Caused an error; Why is this on anyway?
 
         //yes, I know this is hard-wired into the code. We need to figure out a better way.
 

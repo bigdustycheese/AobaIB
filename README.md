@@ -6,7 +6,7 @@ This fork is under repair, please only use it in a local environment.
 2. MySQL/MariaDB server
 3. mbstring
 4. ffmpeg
-5. imagemagick
+5. imagemagick; Optional,needed to make animated thumbnails from GIFs.
 6. PHP GD
 7. PHP PDO
 
